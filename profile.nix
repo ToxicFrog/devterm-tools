@@ -27,6 +27,8 @@ symlinkJoin {
       ];
     }))
 
+    (writeScriptBin "momovt" (builtins.readFile ./momovt))
+
     # needs a RISC-V JIT for javascript (?!): zellij
     # needs packaging: oscwrap
     # needs gnutls: taskwarrior

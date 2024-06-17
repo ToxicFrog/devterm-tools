@@ -1,0 +1,292 @@
+#!/usr/bin/env bash
+#
+# A fancy VT switcher/manager.
+# TODO: allow renaming VTs and showing the names on the status window.
+
+function help {
+  printf "%s\n" "
+    momovt -- fancy vt managment tool
+    Usage: momovt <command>, or momovt --help for quick reference
+    Commands:
+      momovt switch <N>
+        Record the current VT as previous, then switch to VT N.
+      momovt swap
+        Swap the current and previous VTs, and switch to the new current
+      momovt show <N>
+        Show VT N without affecting the current or previous VT state
+        Useful for status displays
+      momovt hide
+        Switch to the current VT (undoing a 'momovt show')
+      momovt ui <command>
+        Use the interactive VT switching UI:
+        momovt ui show
+          Display the interactive switcher
+        momovt ui <up|down|left|right>
+          Move around the VT grid
+        momovt ui done
+          Apply changes; as 'momovt hide; momovt switch <selected VT>'
+        momovt ui cancel
+          Return to the previous VT without changing anything.
+      momovt config [key value ...]
+        Display config, or set one or more options:
+          width: width of VT grid
+          height: height of VT grid (width × height must be < 63)
+          wrap: whether to wrap around when when moving off the edge
+          splash_bg: program to prepare splash background
+          splash_info: program to generate splash text; will be centered
+          splash_ttl: how long in seconds to show the status screen when
+                      switching; -1 leaves it until 'momovt hide'.
+      momovt help
+        This text
+  " | sed -E 's,^( +)(momovt .*),\1\x1B[4m\2\x1B[0m,' | less -R    
+}
+
+function quickhelp {
+  printf "%s\n" "
+    Usage:
+      momovt help
+      momovt <switch N|swap|show N|hide>
+      momovt config [<width|height|battery|wallpaper|splash> <value> ...]
+      momovt ui <show|up|down|left|right|done|cancel>
+  "
+}
+
+#### Startup, command line parsing, and dispatch. ####
+
+set -e
+shopt -s lastpipe
+
+STATEDIR=${STATEDIR:=/run/momovt}
+MOMOTTY=63  # TTY to use for the splash screen
+declare -A STATE
+declare -A CONFIG
+
+function main {
+  local cmd="$1"; shift
+  case "$cmd" in
+    switch|swap|show|hide|ui|config)
+      loadstate
+      cmd/"$cmd" "$@"
+      savestate
+      ;;
+    help)
+      help; exit 0
+      ;;
+    --help|-h|-?)
+      quickhelp; exit 0
+      ;;
+    *)
+      quickhelp; exit 1
+      ;;
+  esac
+}
+
+# State management
+function initstate {
+  mkdir -p "$STATEDIR"
+  cmd/config \
+    width 8 height 1 wrap 0 \
+    splash_ttl 1 splash_bg '' splash_info ''
+  state current 1
+  state prev 1
+  state ui 0
+  savestate
+}
+
+function loadstate {
+  [[ -d $STATEDIR ]] || initstate
+  cat "$STATEDIR/state" | while read -r key value; do
+    STATE[$key]="$value"
+  done
+  cat "$STATEDIR/config" | while read -r key value; do
+    CONFIG[$key]="$value"
+  done
+}
+
+function savestate {
+  for key in "${!STATE[@]}"; do
+    printf '%s %s\n' "$key" "${STATE[$key]}"
+  done > "$STATEDIR/state"
+  for key in "${!CONFIG[@]}"; do
+    printf '%s %s\n' "$key" "${CONFIG[$key]}"
+  done > "$STATEDIR/config"
+}
+
+function state {
+  if [[ $2 ]]; then
+    STATE[$1]=$2
+  else
+    printf '%s' "${STATE[$1]}"
+  fi
+}
+
+function config {
+  if [[ $2 ]]; then
+    CONFIG[$1]=$2
+  else
+    printf '%s' "${CONFIG[$1]}"
+  fi
+}
+
+# Validation
+function checkvt {
+  local vt="$1"
+  # The kernel makes available TTY1-TT63, but we reserve 63 for the splash
+  # screen, so the user has TTY1-62.
+  if ! (( 0 < vt && vt < 63 )); then
+    >&2 echo 'Invalid or unavailable VT: TTY%d' "$vt"
+    exit 2
+  fi
+}
+
+# UI display
+function show-splash {
+  local ttl="$(config splash_ttl)"
+  if ! (( ttl )); then return; fi
+  draw-splash </dev/tty$MOMOTTY >/dev/tty$MOMOTTY
+  cmd/show $MOMOTTY
+  if (( ttl > 0 )); then
+    sleep "$ttl"
+    cmd/hide
+  fi
+}
+
+function csi {
+  printf '\e[%s' "$@"
+}
+
+function draw-splash {
+  local bg="$(config splash_bg)"
+  local info"$(config splash_info)"
+
+  csi 2J H '?25l' # Clear screen, home and hide cursor
+  if [[ $bg ]]; then $bg; csi H; fi
+  if [[ $info ]]; then $info; fi
+
+  draw-vt-grid
+  # printf '\e[1;1HTTY %d -- PREV %d -- BAT %d%% -- %s' \
+  #   "$(state current)" \
+  #   "$(state prev)" \
+  #   "$(cat /sys/class/power_supply/axp20x-battery/capacity)" \
+  #   "$(date %Y-%m-%d +%H:%M)"
+}
+
+# Draw the selector grid of VTs. Assumes the cursor is positioned at the left
+# margin at the line where drawing is to begin.
+function draw-vt-grid {
+  local width="$(config width)"
+  local height="$(config height)"
+  local cols="$(stty -a | egrep -o 'columns [0-9]+' | cut -d' ' -f2)"
+  local margin=$(( (cols - width*4)/2 ))
+  local current="$(state current)"
+  local prev="$(state prev)"
+  for (( y=0; y < height; ++y )); do
+    # Return cursor to left margin, move down one, and add padding
+    csi G 1B ${margin}C
+    for (( x=0; x < width; ++x )); do
+      local tty=$(( y*width + x + 1 ))
+      if (( tty == current )); then csi '102;30;1m';
+      elif (( tty == prev )); then csi '32;1m';
+      fi
+      printf '[%2d]' "$tty"
+      (( tty == current || tty == prev )) && csi 0m
+    done
+  done
+  # TODO: allow tty renaming and use that instead of the /dev
+  csi G 1B ${margin}C 9D
+  printf 'Current: /dev/tty%d' $current
+  csi G 1B ${margin}C 6D
+  printf 'Prev: /dev/tty%d' $prev
+}
+
+
+# Command implementations
+function cmd/switch {
+  checkvt "$1"
+  state prev "$(state current)"
+  state current "$1"
+  show-splash
+  chvt "$1"
+}
+
+function cmd/swap {
+  cmd/switch "$(state prev)"
+}
+
+# No splash screen on show/hide, since these are meant to be used for showing
+# and hiding splash/status screens themselves.
+function cmd/show {
+  checkvt "$1"
+  chvt "$1"
+}
+
+function cmd/hide {
+  chvt "$(state current)"
+}
+
+function cmd/ui {
+  local cmd="$1"; shift
+  case "$cmd" in
+    show|up|down|left|right|done|cancel)
+      echo "would execute cmd/ui/$cmd"
+      ;;
+    *)
+      quickhelp
+      exit 1
+      ;;
+  esac
+}
+
+function cmd/ui/show {
+  false
+}
+
+function cmd/ui/done {
+  false
+}
+
+function cmd/ui/cancel {
+  false
+}
+
+function cmd/ui/left {
+  false
+}
+
+function cmd/ui/right {
+  false
+}
+
+function cmd/ui/up {
+  false
+}
+
+function cmd/ui/down {
+  false
+}
+
+function cmd/config {
+  if [[ ! $1 ]]; then
+    cat "$STATEDIR/config"
+    return
+  fi
+  while [[ $1 ]]; do
+    config "$1" "$2"
+    shift 2
+  done
+}
+
+# # for debugging
+# function chvt {
+#   echo "would switch to vt: $1"
+# }
+
+if [[ $1 == "debug" ]]; then
+  shift
+  while [[ $1 ]]; do $1; shift; done
+  exit 0
+fi
+
+main "$@"
+
+#### END
