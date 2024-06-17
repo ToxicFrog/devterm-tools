@@ -1,0 +1,10 @@
+#!/usr/bin/env zsh
+
+set -e
+
+DEVTERM=root@devterm-R01
+
+nix-build profile.nix |& nom
+nix copy --to ssh://$DEVTERM result/
+ssh $DEVTERM nix profile remove '/nix/store/*-devterm-profile'
+ssh $DEVTERM nix profile install $(readlink result)
