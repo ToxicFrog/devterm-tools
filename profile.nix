@@ -14,12 +14,7 @@ symlinkJoin {
       '';
     }))
 
-    (yaft.overrideAttrs (_: {
-      postInstall = ''
-        mkdir -p $out/share
-        cp glyph.h $out/share/
-      '';
-    }))
+    yaft yaft.terminfo
 
     (micro.overrideAttrs (_: {
       postFixup = "";
