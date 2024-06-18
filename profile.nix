@@ -2,7 +2,7 @@ with import <unstable> {};
 symlinkJoin {
   name = "devterm-profile";
   paths = with pkgsCross.riscv64; [
-    chezmoi nb rlwrap stdmanpages hyfetch
+    chezmoi nb rlwrap stdmanpages input-utils termsonic
     zsh eza btop w3m toilet figlet
 
     (atuin.overrideAttrs (_: {
@@ -35,6 +35,8 @@ symlinkJoin {
     }))
 
     (writeScriptBin "momovt" (builtins.readFile ./momovt))
+    (writeScriptBin "momovt-banner" (builtins.readFile ./momovt-banner))
+    (writeScriptBin "devterm-gamepad-listener" (builtins.readFile ./devterm-gamepad-listener))
     (writeScriptBin "colourtest" (builtins.readFile ../misc/eyecandy/colourtest))
     (writeScriptBin "nixflake" (builtins.readFile ../misc/eyecandy/nixflake))
     (writeScriptBin "devterm-deploy" ''

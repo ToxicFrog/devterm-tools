@@ -1,0 +1,124 @@
+#!/usr/bin/env zsh
+#
+# Convert DevTerm gamepad events into useful things.
+# Events look like:
+# SDL_JOYAXISMOTION: joystick: 0 axis: 0/1 value: 32767/0/-32768
+# SDL_JOYBUTTONDOWN/UP: joystick: 0 button: n state: 0/1
+#
+# Button mapping:
+# Axis 0: -left +right
+# Axis 1: -up +down
+#   y:3   x:0
+#      b:2   a:1
+#   select:8  start:9
+#
+# If using input-events, they look different:
+# Buttons: KEY BTN_NAME pressed/released
+# Axes: ABS X/Y 0/511/1023
+#
+# Axis X: 0:left, 1023:right
+# Axis Y: 0:up, 1024:down
+# Select/Start: BTN_BASE3 and BTN_BASE4
+#   BTN_TOP  BTN_TRIGGER
+#      BTN_THUMB2  BTN_THUMB
+
+readonly -A BUTTONS=(
+  BTN_BASE3 SELECT
+  BTN_BASE4 START
+  BTN_TOP Y   BTN_TRIGGER X
+  BTN_THUMB2 B  BTN_THUMB A
+)
+readonly -A AXES=(
+  X:0 LEFT X:511 X_IDLE X:1023 RIGHT
+  Y:0 UP Y:511 Y_IDLE Y:1023 DOWN
+)
+
+MODE='-'
+
+function main {
+  input-events -t $(( 2**30 )) 4 \
+  |& egrep --line-buffered ': (KEY|ABS)' \
+  | stdbuf -o L cut -d' ' -f2-4 \
+  | while read -r type button value; do
+  	echo "EVT: $type $button $value"
+    if [[ $type == KEY ]]; then
+      button="${BUTTONS[$button]}"
+    fi
+    process-event $type $button $value
+  done
+}
+
+function process-event {
+  case $1:$2 in
+    KEY:SELECT)
+      dispatch-event SELECT/$MODE $3
+      ;;
+    KEY:START)
+      dispatch-event START/$MODE $3
+      ;;
+    KEY:*)
+      if [[ $3 == pressed ]]; then
+        MODE=$2
+        dispatch-event "enter/${MODE}"
+      else
+        dispatch-event "leave/${MODE}"
+        MODE='-'
+      fi
+      return
+      ;;
+    ABS:*)
+      dispatch-event "${AXES[$2:$3]}/${MODE}"
+      ;;
+  esac
+}
+
+# Call an event handler.
+# Event handlers are named events/<enter|leave|button>/<mode>
+# mode is - if no mode is active
+# if the button is select/start, $1 is "pressed" or "released" so
+# you can catch keyup events.
+function dispatch-event {
+  echo "Dispatch: $1"
+  if [[ $(whence -w events/$1) == *": function" ]]; then
+    time events/$1 "$@"
+  fi
+}
+
+function events/SELECT/- {
+  [[ $2 == pressed ]] && momovt swap;
+}
+
+SLEEPTIMER=0
+function events/START/- {
+  if [[ $2 == pressed ]]; then
+    SLEEPTIMER="$(date +%s)"
+    return
+  fi
+
+  local NOW="$(date +%s)"
+  (( SLEEPTIMER && NOW - SLEEPTIMER < 3 )) && return
+
+  if [[ $(cat /sys/class/backlight/backlight@0/actual_brightness) == 0 ]]; then
+    # Wake from sleep
+    cpi-backlight on
+    momovt hide
+    </dev/tty0 setterm --blank=poke
+  else
+    # Sleep
+    </dev/tty0 setterm --blank=force
+    cpi-backlight off
+    momovt show 62
+  fi
+}
+
+function events/enter/Y { momovt ui show; }
+function events/leave/Y { momovt ui commit; }
+function events/LEFT/Y  { momovt ui left; }
+function events/RIGHT/Y { momovt ui right; }
+function events/UP/Y    { momovt ui up; }
+function events/DOWN/Y  { momovt ui down; }
+
+function events/UP/A { cpi-backlight up; }
+function events/DOWN/A { cpi-backlight down; }
+
+main "$@"
