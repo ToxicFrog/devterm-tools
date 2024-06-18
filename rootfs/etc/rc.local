@@ -1,0 +1,6 @@
+#!/bin/bash
+
+PATH=/nix/var/nix/profiles/default/bin/:$PATH
+
+momovt config width 5 height 3 wrap 0 splash_ttl 1
+#systemctl start getty@tty{1..16}

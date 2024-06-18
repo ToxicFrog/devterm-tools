@@ -2,8 +2,8 @@ with import <unstable> {};
 symlinkJoin {
   name = "devterm-profile";
   paths = with pkgsCross.riscv64; [
-    chezmoi nb yaft rlwrap stdmanpages
-    zsh eza btop w3m toilet figlet hyfetch
+    chezmoi nb rlwrap stdmanpages hyfetch
+    zsh eza btop w3m toilet figlet
 
     (atuin.overrideAttrs (_: {
       depsBuildBuild = [ buildPackages.protobuf ];
@@ -11,6 +11,13 @@ symlinkJoin {
       preBuild = ''
         export PROTOC=${buildPackages.protobuf}/bin/protoc
         export PROTOC_INCLUDE=${protobuf}/include
+      '';
+    }))
+
+    (yaft.overrideAttrs (_: {
+      postInstall = ''
+        mkdir -p $out/share
+        cp glyph.h $out/share/
       '';
     }))
 
@@ -28,6 +35,15 @@ symlinkJoin {
     }))
 
     (writeScriptBin "momovt" (builtins.readFile ./momovt))
+    (writeScriptBin "colourtest" (builtins.readFile ../misc/eyecandy/colourtest))
+    (writeScriptBin "nixflake" (builtins.readFile ../misc/eyecandy/nixflake))
+    (writeScriptBin "devterm-deploy" ''
+      ln -sf /lib/systemd/system/rc-local.service /etc/systemd/system/multi-user.target.wants
+      rm -rf /etc/systemd/system/getty@tty1.service.d
+      rsync -aPh ${./rootfs}/ /
+      /etc/rc.local
+      # apt remove landscape-sysinfo
+    '')
 
     # needs a RISC-V JIT for javascript (?!): zellij
     # needs packaging: oscwrap
