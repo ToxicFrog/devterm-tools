@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+#
+# Usage: chvt-fancy [-w] [-m maxvt] <left|right|home|end|vt#>
+
+BATTERY=/sys/class/power_supply/axp20x-battery/capacity
+
+function splash {
+  printf ' TTY %2d  •  %3d%%  •  %s ' "${NEXT_VT:-${VT}}" "$(cat $BATTERY)" "$(date +'%H:%M')" \
+  | toilet -t \
+    -d /root/.nix-profile/share/figlet/ \
+    -f bdffonts/xcourb \
+    -F border -F crop \
+  | sed 's,#,█,g'
+}
+
+function centered {
+  local rows="$1"
+  local cols="$2"
+  local buf="$(cat)"
+  local w="$(echo "$buf" | wc -L)"
+  local h="$(echo "$buf" | wc -l)"
+  local hpadding=$(( (cols-w)/2 ))
+  local vpadding=$(( (rows-h)/2 ))
+  echo "$buf" | while read -r line; do
+    printf "\e[G\e[1B\e[${hpadding}C%s" "$line"
+  done
+}
+
+rows="$(stty -a -F /dev/tty63 | egrep -o 'rows [0-9]+' | cut -d' ' -f2)"
+cols="$(stty -a -F /dev/tty63 | egrep -o 'columns [0-9]+' | cut -d' ' -f2)"
+splash | centered $rows $cols

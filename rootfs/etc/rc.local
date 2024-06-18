@@ -2,5 +2,10 @@
 
 PATH=/nix/var/nix/profiles/default/bin/:$PATH
 
-momovt config width 5 height 3 wrap 0 splash_ttl 1
+momovt config \
+  width 5 height 3 \
+  wrap 0 \
+  splash_ttl 1 \
+  splash_info momovt-banner
+
 #systemctl start getty@tty{1..16}
