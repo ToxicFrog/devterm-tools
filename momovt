@@ -23,7 +23,7 @@ function help {
           Display the interactive switcher
         momovt ui <up|down|left|right>
           Move around the VT grid
-        momovt ui done
+        momovt ui commit
           Apply changes; as 'momovt hide; momovt switch <selected VT>'
         momovt ui cancel
           Return to the previous VT without changing anything.
@@ -38,7 +38,7 @@ function help {
                       switching; -1 leaves it until 'momovt hide'.
       momovt help
         This text
-  " | sed -E 's,^( +)(momovt .*),\1\x1B[4m\2\x1B[0m,' | less -R    
+  " | sed -E 's,^  ,,; s,^( +)(momovt .*),\1\x1B[4m\2\x1B[0m,' | less -R
 }
 
 function quickhelp {
@@ -46,8 +46,8 @@ function quickhelp {
     Usage:
       momovt help
       momovt <switch N|swap|show N|hide>
-      momovt config [<width|height|battery|wallpaper|splash> <value> ...]
-      momovt ui <show|up|down|left|right|done|cancel>
+      momovt config [<key> <value> ...]
+      momovt ui <show|up|down|left|right|commit|cancel>
   "
 }
 
@@ -134,7 +134,7 @@ function checkvt {
   # The kernel makes available TTY1-TT63, but we reserve 63 for the splash
   # screen, so the user has TTY1-62.
   if ! (( 0 < vt && vt < 63 )); then
-    >&2 echo 'Invalid or unavailable VT: TTY%d' "$vt"
+    >&2 printf 'Invalid or unavailable VT: TTY%d' "$vt"
     exit 2
   fi
 }
@@ -144,7 +144,7 @@ function show-splash {
   local ttl="$(config splash_ttl)"
   if ! (( ttl )); then return; fi
   draw-splash </dev/tty$MOMOTTY >/dev/tty$MOMOTTY
-  cmd/show $MOMOTTY
+  chvt $MOMOTTY
   if (( ttl > 0 )); then
     sleep "$ttl"
     cmd/hide
@@ -157,18 +157,25 @@ function csi {
 
 function draw-splash {
   local bg="$(config splash_bg)"
-  local info"$(config splash_info)"
 
   csi 2J H '?25l' # Clear screen, home and hide cursor
-  if [[ $bg ]]; then $bg; csi H; fi
-  if [[ $info ]]; then $info; fi
+  if [[ $bg ]]; then
+    VT=$(state current) PREV_VT=$(state prev) NEXT_VT=$(state ui_vt) $bg
+  fi
+
+  refresh-splash
+}
+
+function refresh-splash {
+  local info="$(config splash_info)"
+  csi H
+  if [[ $info ]]; then
+    >&2 echo "time: draw-info"
+    VT=$(state current) PREV_VT=$(state prev) NEXT_VT=$(state ui_vt) time $info
+    >&2 echo "done: draw-info"
+  fi
 
   draw-vt-grid
-  # printf '\e[1;1HTTY %d -- PREV %d -- BAT %d%% -- %s' \
-  #   "$(state current)" \
-  #   "$(state prev)" \
-  #   "$(cat /sys/class/power_supply/axp20x-battery/capacity)" \
-  #   "$(date %Y-%m-%d +%H:%M)"
 }
 
 # Draw the selector grid of VTs. Assumes the cursor is positioned at the left
@@ -178,7 +185,11 @@ function draw-vt-grid {
   local height="$(config height)"
   local cols="$(stty -a | egrep -o 'columns [0-9]+' | cut -d' ' -f2)"
   local margin=$(( (cols - width*4)/2 ))
-  local current="$(state current)"
+  if (( $(state ui) )); then
+    local current=$(state ui_vt)
+  else
+    local current=$(state current)
+  fi
   local prev="$(state prev)"
   for (( y=0; y < height; ++y )); do
     # Return cursor to left margin, move down one, and add padding
@@ -227,8 +238,8 @@ function cmd/hide {
 function cmd/ui {
   local cmd="$1"; shift
   case "$cmd" in
-    show|up|down|left|right|done|cancel)
-      echo "would execute cmd/ui/$cmd"
+    show|up|down|left|right|commit|cancel)
+      cmd/ui/$cmd
       ;;
     *)
       quickhelp
@@ -237,32 +248,89 @@ function cmd/ui {
   esac
 }
 
-function cmd/ui/show {
-  false
+function draw-ui {
+  draw-splash </dev/tty$MOMOTTY >/dev/tty$MOMOTTY
 }
 
-function cmd/ui/done {
-  false
+function refresh-ui {
+  >&2 echo "time: refresh-ui"
+  time refresh-splash </dev/tty$MOMOTTY >/dev/tty$MOMOTTY
+  >&2 echo "done: refresh-ui"
+}
+
+function cmd/ui/show {
+  [[ $(state ui) == 1 ]] && return
+  state ui 1
+  state ui_vt $(state current)
+  draw-ui
+  chvt $MOMOTTY
+}
+
+function cmd/ui/commit {
+  [[ $(state ui) == 0 ]] && return
+  state prev $(state current)
+  state current $(state ui_vt)
+  cmd/ui/cancel
 }
 
 function cmd/ui/cancel {
-  false
+  [[ $(state ui) == 0 ]] && return
+  state ui 0 ui_vt 0
+  cmd/hide
+}
+
+function getxy {
+  vt=$(state ui_vt)
+  width=$(config width)
+  height=$(config height)
+  x=$(( (vt-1) % width ))
+  y=$(( (vt-1) / width ))
+  # echo "getxy: vt=$vt wh=($width,$height) xy=($x,$y)"
+}
+
+function setxy {
+  local wrap=$(config wrap)
+  # echo "setxy: wrap=$wrap wh=($width,$height) xy=($x,$y)"
+  if (( x < 0 )); then
+    (( wrap )) && (( x = width - 1 )) || (( x = 0 ))
+  fi
+  if (( x >= width )); then
+    (( wrap )) && (( x = 0 )) || (( x = width -1 ))
+  fi
+  if (( y < 0 )); then
+    (( wrap )) && (( y = height - 1 )) || (( y = 0 ))
+  fi
+  if (( y >= width )); then
+    (( wrap )) && (( y = 0 )) || (( y = height -1 ))
+  fi
+  (( vt = y * width + x + 1 ))
+  # echo "setxy: vt=$vt"
+  state ui_vt $vt
+  refresh-ui
 }
 
 function cmd/ui/left {
-  false
+  [[ $(state ui) == 0 ]] && return
+  local vt width height x y; getxy
+  x=$(( x-1 )); setxy
 }
 
 function cmd/ui/right {
-  false
+  [[ $(state ui) == 0 ]] && return
+  local vt width height x y; getxy
+  x=$(( x+1 )); setxy
 }
 
 function cmd/ui/up {
-  false
+  [[ $(state ui) == 0 ]] && return
+  local vt width height x y; getxy
+  y=$(( y-1 )); setxy
 }
 
 function cmd/ui/down {
-  false
+  [[ $(state ui) == 0 ]] && return
+  local vt width height x y; getxy
+  y=$(( y+1 )); setxy
 }
 
 function cmd/config {
