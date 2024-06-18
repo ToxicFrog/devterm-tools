@@ -34,6 +34,22 @@ symlinkJoin {
       ];
     }))
 
+    # Unfortunately builds taskchampion alongside task, which depends on Ring,
+    # which does not support RISC-V.
+    # (taskwarrior3.overrideAttrs (_: {
+    #   # Remove xdg-open dependency
+    #   postPatch = "";
+    #   # Fix cross-compile
+    #   buildInputs = [ libuuid ];
+    #   cmakeFlags = [
+    #     "-DRust_CARGO_TARGET=riscv64gc-unknown-linux-gnu"
+    #     "--build" "build" "--target" "task_executable"
+    #   ];
+    #   preBuild = ''
+    #     export TARGET_CC=${stdenv.cc}/bin/gcc
+    #   '';
+    # }))
+
     (writeScriptBin "momovt" (builtins.readFile ./momovt))
     (writeScriptBin "momovt-banner" (builtins.readFile ./momovt-banner))
     (writeScriptBin "devterm-gamepad-listener" (builtins.readFile ./devterm-gamepad-listener))
@@ -50,6 +66,7 @@ symlinkJoin {
     # needs a RISC-V JIT for javascript (?!): zellij
     # needs packaging: oscwrap
     # needs gnutls: taskwarrior
+
     # pick one of: vit taskwarrior-tui
   ];
 }
