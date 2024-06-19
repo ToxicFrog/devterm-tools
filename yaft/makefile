@@ -37,7 +37,7 @@ glyph.h: mkfont_bdf
 	# ALIAS: glyph substitution rule file (see table/alias for more detail)
 	# BDF1 BDF2 BDF3...: monospace bdf files (must be the same size)
 	# If there is more than one glyph of the same codepoint, the glyph included in the first bdf file is choosen.
-	./mkfont_bdf table/alias fonts/milkjf/milkjf_k16.bdf fonts/milkjf/milkjf_8x16r.bdf fonts/milkjf/milkjf_8x16.bdf fonts/terminus/ter-u16n.bdf > glyph.h
+	./mkfont_bdf table/alias fonts/TamzenForPowerline10x20r.bdf > glyph.h
 
 yaft: yaft.c $(HDR)
 	# If you want to change configuration, please modify conf.h before make (see conf.h for more detail)
