@@ -5,7 +5,7 @@
 enum {
 	DEFAULT_FG           = 7,
 	DEFAULT_BG           = 0,
-	ACTIVE_CURSOR_COLOR  = 2,
+	ACTIVE_CURSOR_COLOR  = 3,
 	PASSIVE_CURSOR_COLOR = 1,
 };
 
