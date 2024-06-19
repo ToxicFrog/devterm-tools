@@ -13,10 +13,10 @@ HDR = glyph.h yaft.h conf.h color.h parse.h terminal.h util.h \
 	fb/common.h fb/linux.h fb/freebsd.h fb/netbsd.h fb/openbsd.h \
 	x/x.h
 
-prefix ?= $(DESTDIR)/usr/local
-mandir ?= $(prefix)/share/man
-#terminfo ?= $(prefix)/share/terminfo		# Not used in Debian, instead
-terminfo ?= /etc/terminfo			# store terminfo in /etc.
+PREFIX ?= $(DESTDIR)/usr/local
+MANPREFIX ?= $(PREFIX)/share/man
+TERMPREFIX ?= $(PREFIX)/share/terminfo		# Not used in Debian, instead
+#TERMPREFIX ?= /etc/terminfo			        # store terminfo in /etc.
 
 all: yaft
 
@@ -48,28 +48,25 @@ yaftx: x/yaftx.c $(HDR)
 	$(CC) -o $@ $< $(XCFLAGS) $(XLDFLAGS)
 
 install: installshare
-	mkdir -p $(prefix)/bin/
-	install -m755 ./yaft $(prefix)/bin/yaft
-	install -m755 ./yaft_wall $(prefix)/bin/yaft_wall
+	mkdir -p $(PREFIX)/bin/
+	install -m755 ./yaft $(PREFIX)/bin/yaft
+	install -m755 ./yaft_wall $(PREFIX)/bin/yaft_wall
 
 installx: installshare
-	mkdir -p $(prefix)/bin/
-	install -m755 ./yaftx $(prefix)/bin/yaftx
-	mkdir -p $(terminfo)
-	tic -o $(terminfo) info/yaft.src
+	mkdir -p $(PREFIX)/bin/
+	install -m755 ./yaftx $(PREFIX)/bin/yaftx
 
 installshare:
-	mkdir -p $(mandir)/man1/
-	install -m644 ./man/yaft.1 $(mandir)/man1/yaft.1
-	mkdir -p $(terminfo)
-	tic -o $(terminfo) info/yaft.src
+	mkdir -p $(MANPREFIX)/man1/ $(TERMPREFIX)
+	install -m644 ./man/yaft.1 $(MANPREFIX)/man1/yaft.1
+	tic -o $(TERMPREFIX) info/yaft.src
 
 uninstall:
-	rm -f $(prefix)/bin/yaft
-	rm -f $(prefix)/bin/yaft_wall
+	rm -f $(PREFIX)/bin/yaft
+	rm -f $(PREFIX)/bin/yaft_wall
 
 uninstallx:
-	rm -f $(prefix)/bin/yaftx
+	rm -f $(PREFIX)/bin/yaftx
 
 clean:
 	rm -f yaft yaftx mkfont_bdf glyph.h
