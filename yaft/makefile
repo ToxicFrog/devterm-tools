@@ -1,4 +1,5 @@
 CC ?= gcc
+CC_FOR_BUILD ?= gcc
 #CC ?= clang
 
 CFLAGS  ?= -std=c99 -pedantic -Wall -Wextra -O3 -s -pipe
@@ -24,7 +25,8 @@ yaft: mkfont_bdf
 yaftx: mkfont_bdf
 
 mkfont_bdf: tools/mkfont_bdf.c tools/mkfont_bdf.h tools/bdf.h tools/util.h
-	$(CC) -o $@ $< $(CFLAGS) $(LDFLAGS)
+	# Don't cross-compile this since it's part of the build chain.
+	$(CC_FOR_BUILD) -o $@ $< $(CFLAGS) $(LDFLAGS)
 
 
 # This makefile creates a default glyph.h, if you haven't created one using ./glyphbuilder.sh.
