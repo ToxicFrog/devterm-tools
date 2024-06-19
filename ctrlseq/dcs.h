@@ -525,8 +525,8 @@ void decdld_parse_header(struct terminal_t *term, char *start_buf)
 		      (TODO: implement sixel/text mode)
 		Pcmh: max cellheight (force CELL_HEIGHT defined in glyph.h)
 		Pcss: character set size (force: 96)
-				0: 94 glyphs charset
-				1: 96 glyphs charset
+				0: 94 gylphs charset
+				1: 96 gylphs charset
 		f   : '{' (0x7B)
 		Dscs: define character set
 				Intermediate char: SPACE (0x20) to '/' (0x2F)
@@ -579,7 +579,7 @@ void decdld_parse_header(struct terminal_t *term, char *start_buf)
 	else if (erase_mode == 0) /* reset selected drcs charset */
 		memset(term->drcs + GLYPHS_PER_CHARSET * charset, 0, sizeof(struct glyph_t) * DRCS_CHARS);
 
-	//if (term->drcs[charset] == NULL) /* always allocate 96 chars buffer */
+	//if (term->drcs[charset] == NULL) /* always allcate 96 chars buffer */
 		//term->drcs[charset] = ecalloc(GLYPH_PER_CHARSET, sizeof(struct glyph_t));
 
 	decdld_parse_data(cp + 1, start_char, term->drcs + GLYPHS_PER_CHARSET * charset); /* skip final char */

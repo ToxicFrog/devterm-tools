@@ -1,9 +1,7 @@
 # yaft (yet another framebuffer terminal)
 
-| Branch | Badge |
-| :--: | :--: |
-| master | [![CircleCI](https://circleci.com/gh/uobikiemukot/yaft.svg?style=svg)](https://circleci.com/gh/uobikiemukot/yaft) |
-| develop | [![CircleCI](https://circleci.com/gh/uobikiemukot/yaft/tree/develop.svg?style=svg)](https://circleci.com/gh/uobikiemukot/yaft/tree/develop) |
+- master: [![CircleCI](https://circleci.com/gh/uobikiemukot/yaft.svg?style=svg)](https://circleci.com/gh/uobikiemukot/yaft)
+- develop: [![CircleCI](https://circleci.com/gh/uobikiemukot/yaft/tree/develop.svg?style=svg)](https://circleci.com/gh/uobikiemukot/yaft/tree/develop)
 
 Last update: Wed Mar 14 18:44:27 JST 2018
 
@@ -15,7 +13,7 @@ Features:
 
 +	various framebuffer types (8/15/16/24/32bpp)
 +	compatible with vt102 and Linux console ([detail](http://uobikiemukot.github.io/yaft/escape.html))
-+	UTF-8 encoding and UCS2 glyphs
++	UTF-8 encoding and UCS2 gylphs
 +	256 colors (same as xterm)
 +	wallpaper
 +	DRCS (DECDLD/DRCSMMv1) (experimental)
@@ -41,10 +39,40 @@ If you want to change configuration, rewrite "conf.h".
 ## environment variables
 
 -	FRAMEBUFFER=/dev/fb0: specify farmebuffer device
+-	SHELL=/bin/bash: specify shell command
 -	YAFT="wall": use current background as wallpaper (need [idump](https://github.com/uobikiemukot/idump) or fbv)
 
 ~~~
-$ idump /path/to/wallpaper.png; tput civis; YAFT="wall" FRAMEBUFFER="/dev/fb1" yaft
+$ idump /path/to/wallpaper.png; tput civis; YAFT="wall" FRAMEBUFFER="/dev/fb1" SHELL="/bin/csh" yaft
+~~~
+
+## how to use your favorite fonts
+
+You can use tools/mkfont_bdf to create "glyph.h".
+
+usage: tools/mkfont_bdf ALIAS_FILE BDF1 BDF2 BDF3 ... > glyph.h
+
+-	ALIAS_FILE: glyph substitution rule file (see table/alias)
+-	BDF1, BDF2, BDF3...: bdf files
+	+	yaft supports only "monospace" bdf font
+	+	you can specify mulitiple bdf fonts (but these fonts MUST be the same size)
+		+	If there is more than one glyph of the same codepoint, the glyph included in the FIRST bdf file is choosed
+
+~~~
+$ ./mkfont_bdf table/your_alias your/favorite/fonts.bdf > glyph.h
+~~~
+
+## build and install
+
+*BSD users should check README.bsd
+
+~~~
+$ export LANG=en_US.UTF-8 # yaft uses libc's wcwidth for calculating glyph width
+$ make
+# make install
+or
+$ make yaftx
+# make installx
 ~~~
 
 ## how to use your favorite fonts
@@ -66,19 +94,6 @@ $ ./mkfont_bdf table/your_alias your/favorite/fonts.bdf > glyph.h
 Or try glyph_builder.sh (bash script for creating yaft's glyph.h)
 
 -	supported fonts: mplus, efont, milkjf, unifont, dina, terminus, profont, tamsyn
-
-## build and install
-
-BSD users should check README.bsd
-
-~~~
-$ export LANG=en_US.UTF-8 # yaft uses libc's wcwidth for calculating glyph width
-$ make
-# make install
-or
-$ make yaftx
-# make installx
-~~~
 
 ## screenshot
 

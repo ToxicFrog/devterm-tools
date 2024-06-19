@@ -71,53 +71,16 @@ struct xwindow_t {
 	unsigned long color_palette[COLORS];
 };
 
-#define PXCACHE_SIZE (1024)
-struct pxcache_entry {
-	uint32_t color;
-	unsigned long pixel;
-};
-static struct pxcache_entry pxcache[PXCACHE_SIZE];
-static int pxcache_top = 0;
-
-bool search_pxcache(uint32_t color, unsigned long *pixel)
-{
-	int i;
-	/* usually faster to search recently allocated colors first */
-	for (i = pxcache_top - 1; i >= 0; i--) {
-		if (pxcache[i].color == color) {
-			*pixel = pxcache[i].pixel;
-			return true;
-		}
-	}
-	return false;
-}
-
 unsigned long color2pixel(struct xwindow_t *xw, uint32_t color)
 {
-	unsigned long pixel;
-	if (search_pxcache(color, &pixel)) {
-		return pixel;
-	} else {
-		XColor xc;
+	XColor xc;
 
-		xc.red   = ((color >> 16) & bit_mask[8]) << 8;
-		xc.green = ((color >>  8) & bit_mask[8]) << 8;
-		xc.blue  = ((color >>  0) & bit_mask[8]) << 8;
+	xc.red   = ((color >> 16) & bit_mask[8]) << 8;
+	xc.green = ((color >>  8) & bit_mask[8]) << 8;
+	xc.blue  = ((color >>  0) & bit_mask[8]) << 8;
 
-		if (!XAllocColor(xw->display, xw->cmap, &xc)) {
-			logging(WARN, "could not allocate color\n");
-			return BlackPixel(xw->display, DefaultScreen(xw->display));
-		} else {
-			if (pxcache_top == PXCACHE_SIZE) {
-				logging(WARN, "pixel cache is full. starting over\n");
-				pxcache_top = 0;
-			}
-			pxcache[pxcache_top].color = color;
-			pxcache[pxcache_top].pixel = xc.pixel;
-			pxcache_top++;
-			return xc.pixel;
-		}
-	}
+	XAllocColor(xw->display, xw->cmap, &xc);
+	return xc.pixel;
 }
 
 bool xw_init(struct xwindow_t *xw)
@@ -195,7 +158,7 @@ static inline void draw_line(struct xwindow_t *xw, struct terminal_t *term, int 
 	struct cell_t *cellp;
 	const struct glyph_t *glyphp;
 
-	/* at first, fill all pixels of line in background color */
+	/* at first, fill all pixels of line in backgournd color */
 	XSetForeground(xw->display, xw->gc, xw->color_palette[DEFAULT_BG]);
 	XFillRectangle(xw->display, xw->pixbuf, xw->gc, 0, line * CELL_HEIGHT, term->width, CELL_HEIGHT);
 
@@ -219,7 +182,7 @@ static inline void draw_line(struct xwindow_t *xw, struct terminal_t *term, int 
 		if (cellp->width == WIDE)
 			bdf_padding += CELL_WIDTH;
 
-		/* check cursor position */
+		/* check cursor positon */
 		if ((term->mode & MODE_CURSOR && line == term->cursor.y)
 			&& (col == term->cursor.x
 			|| (cellp->width == WIDE && (col + 1) == term->cursor.x)
