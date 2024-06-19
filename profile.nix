@@ -51,10 +51,13 @@ symlinkJoin {
     (writeScriptBin "colourtest" (builtins.readFile ../misc/eyecandy/colourtest))
     (writeScriptBin "nixflake" (builtins.readFile ../misc/eyecandy/nixflake))
     (writeScriptBin "devterm-deploy" ''
+      ln -sf ${zsh}/bin/zsh /bin/
       ln -sf /lib/systemd/system/rc-local.service /etc/systemd/system/multi-user.target.wants
       rm -rf /etc/systemd/system/getty@tty1.service.d
       rsync -aPh ${./rootfs}/ /
       /etc/rc.local
+      . /root/.nix-profile/etc/profile.d/nix.sh
+      mandb $(manpath -d)
       # apt remove landscape-sysinfo
     '')
 
