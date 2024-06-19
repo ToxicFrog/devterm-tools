@@ -342,12 +342,17 @@ void term_die(struct terminal_t *term)
 	free(term->cells);
 }
 
-bool term_init(struct terminal_t *term, int width, int height)
+bool term_init(struct terminal_t *term, struct framebuffer_t *fb)
 {
 	extern const uint32_t color_list[COLORS]; /* global */
 
-	term->width  = width;
-	term->height = height;
+	if (is_rotated_90(fb)) {
+		term->width  = fb->info.height;
+		term->height = fb->info.width;
+	} else {
+		term->width  = fb->info.width;
+		term->height = fb->info.height;
+	}
 
 	term->cols  = term->width / CELL_WIDTH;
 	term->lines = term->height / CELL_HEIGHT;
@@ -360,7 +365,7 @@ bool term_init(struct terminal_t *term, int width, int height)
 	term->line_dirty   = (bool *) ecalloc(term->lines, sizeof(bool));
 	term->tabstop      = (bool *) ecalloc(term->cols, sizeof(bool));
 	term->esc.buf      = (char *) ecalloc(1, term->esc.size);
-	term->sixel.pixmap = (uint8_t *) ecalloc(width * height, BYTES_PER_PIXEL);
+	term->sixel.pixmap = (uint8_t *) ecalloc(term->width * term->height, BYTES_PER_PIXEL);
 
 	term->cells        = (struct cell_t **) ecalloc(term->lines, sizeof(struct cell_t *));
 	for (int i = 0; i < term->lines; i++)

@@ -180,7 +180,7 @@ int main(int argc, char *const argv[])
 		goto fb_init_failed;
 	}
 
-	if (!term_init(&term, fb.info.width, fb.info.height)) {
+	if (!term_init(&term, &fb)) {
 		logging(FATAL, "terminal initialize failed\n");
 		goto term_init_failed;
 	}

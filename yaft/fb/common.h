@@ -292,6 +292,11 @@ void fb_print_info(struct fb_info_t *info)
 	logging(DEBUG, "\tvisual:%s\n", visual_str[info->visual]);
 }
 
+bool is_rotated_90(struct framebuffer_t *fb) {
+	return fb->rotate == ROTATE_CLOCKWISE
+		|| fb->rotate == ROTATE_COUNTER_CLOCKWISE;
+}
+
 bool fb_init(struct framebuffer_t *fb)
 {
 	extern const uint32_t color_list[COLORS]; /* defined in color.h */
@@ -394,6 +399,7 @@ static inline void draw_sixel(struct framebuffer_t *fb, int line, int col, uint8
 			src_offset = BYTES_PER_PIXEL * (h * CELL_WIDTH + w);
 			memcpy(&color, pixmap + src_offset, BYTES_PER_PIXEL);
 
+			// FIXME: support rotated sixels
 			dst_offset = (line * CELL_HEIGHT + h) * fb->info.line_length
 				+ (col * CELL_WIDTH + w) * fb->info.bytes_per_pixel;
 			pixel = color2pixel(&fb->info, color);
@@ -402,30 +408,30 @@ static inline void draw_sixel(struct framebuffer_t *fb, int line, int col, uint8
 	}
 }
 
-int get_rotated_pos(struct framebuffer_t *fb, struct terminal_t *term, int x, int y)
-{
-	int x2, y2;
-
-	if (fb->rotate == ROTATE_CLOCKWISE) {
-		x2 = y;
-		y2 = (term->width - 1) - x;
-	}
-	else if (fb->rotate == ROTATE_UPSIDE_DOWN) {
-		x2 = (term->width - 1) - x;
-		y2 = (term->height - 1) - y;
-	}
-	else if (fb->rotate == ROTATE_COUNTER_CLOCKWISE) {
-		x2 = (term->height - 1) - y;
-		y2 = x;
-	}
-	else { /* rotate: NORMAL */
-		x2 = x;
-		y2 = y;
-	}
-
-	return (x2 * fb->info.bytes_per_pixel) + (y2 * fb->info.line_length);
+// Turn (x,y) coordinates into pixel indexes in the framebuffer.
+inline size_t px_offset_norot(struct framebuffer_t *fb, int x, int y) {
+		return y * fb->info.line_length
+				 + x * fb->info.bytes_per_pixel;
 }
 
+// Given an (x,y) position, return the offset into the underlying offscreen
+// drawing surface, taking rotation into account.
+inline size_t get_px_offset(struct framebuffer_t *fb, int x, int y) {
+	if (fb->rotate == ROTATE_NORMAL) {
+		return px_offset_norot(fb, x, y);
+	} else if (fb->rotate == ROTATE_CLOCKWISE) {
+		// We're going from screenspace to framebuffer coordinates here, so we need
+		// to rotate *counter*clockwise.
+		return px_offset_norot(fb, (fb->info.width - 1) - y, x);
+	} else if (fb->rotate == ROTATE_COUNTER_CLOCKWISE) {
+		// And vice versa.
+		return px_offset_norot(fb, y, (fb->info.height - 1) - x);
+	} else { // ROTATE_UPSIDE_DOWN
+		return px_offset_norot(fb, (fb->info.width - 1) - x, (fb->info.height - 1) - y);
+	}
+}
+
+// Draw a row of cells to the screen.
 static inline void draw_line(struct framebuffer_t *fb, struct terminal_t *term, int line)
 {
 	int pos, size, bdf_padding, glyph_width, margin_right;
@@ -433,9 +439,6 @@ static inline void draw_line(struct framebuffer_t *fb, struct terminal_t *term, 
 	uint32_t pixel;
 	struct color_pair_t color_pair;
 	struct cell_t *cellp;
-
-	size = (fb->rotate == ROTATE_CLOCKWISE || fb->rotate == ROTATE_COUNTER_CLOCKWISE) ?
-		CELL_HEIGHT * fb->info.bytes_per_pixel: CELL_HEIGHT * fb->info.line_length;
 
 	for (col = term->cols - 1; col >= 0; col--) {
 		margin_right = (term->cols - 1 - col) * CELL_WIDTH;
@@ -458,7 +461,7 @@ static inline void draw_line(struct framebuffer_t *fb, struct terminal_t *term, 
 		if (cellp->width == WIDE)
 			bdf_padding += CELL_WIDTH;
 
-		/* check cursor positon */
+		/* check cursor position */
 		if ((term->mode & MODE_CURSOR && line == term->cursor.y)
 			&& (col == term->cursor.x
 			|| (cellp->width == WIDE && (col + 1) == term->cursor.x)
@@ -473,7 +476,9 @@ static inline void draw_line(struct framebuffer_t *fb, struct terminal_t *term, 
 				color_pair.bg = color_pair.fg;
 
 			for (w = 0; w < CELL_WIDTH; w++) {
-				pos = get_rotated_pos(fb, term, term->width - 1 - margin_right - w,
+				pos = get_px_offset(
+					fb,
+					term->width - 1 - margin_right - w,
 					line * CELL_HEIGHT + h);
 
 				/* set color palette */
@@ -490,21 +495,36 @@ static inline void draw_line(struct framebuffer_t *fb, struct terminal_t *term, 
 		}
 
 		/* actual display update */
-		if (fb->rotate == ROTATE_CLOCKWISE || fb->rotate == ROTATE_COUNTER_CLOCKWISE) {
+		// If we're rotated, each vertical slice of the character cell is a horizontal
+		// slice of the framebuffer, so draw it out one slice at a time.
+		if (is_rotated_90(fb)) {
+			size = CELL_HEIGHT * fb->info.bytes_per_pixel;
 			for (w = 0; w < CELL_WIDTH; w++) {
-				pos = (fb->rotate == ROTATE_CLOCKWISE) ?
-					get_rotated_pos(fb, term, term->width - 1 - margin_right - w, line * CELL_HEIGHT):
-					get_rotated_pos(fb, term, term->width - 1 - margin_right - w, (line + 1) * CELL_HEIGHT - 1);
+				if (fb->rotate == ROTATE_CLOCKWISE) {
+					// Clockwise rotation means we need to ask for points along the bottom
+					// edge of the character cell, in order to make sure they are located
+					// at the start of slice in the real framebuffer.
+					pos = get_px_offset(fb,
+						term->width - 1 - margin_right - w,
+						(line + 1) * CELL_HEIGHT - 1);
+				} else {
+					pos = get_px_offset(fb,
+						term->width - 1 - margin_right - w,
+						line * CELL_HEIGHT);
+				}
 				memcpy(fb->fp + pos, fb->buf + pos, size);
 			}
 		}
 	}
 
-	/* actual display update (bit blit) */
-	if (fb->rotate == ROTATE_NORMAL || fb->rotate == ROTATE_UPSIDE_DOWN) {
-		pos = (fb->rotate == ROTATE_NORMAL) ?
-			get_rotated_pos(fb, term, 0, line * CELL_HEIGHT):
-			get_rotated_pos(fb, term, term->width - 1, (line + 1) * CELL_HEIGHT - 1);
+	// We can just blit the entire line in one go.
+	if (!is_rotated_90(fb)) {
+		size = CELL_HEIGHT * fb->info.line_length;
+		if (fb->rotate == ROTATE_UPSIDE_DOWN) {
+			pos = get_px_offset(fb, 0, (line+1) * CELL_HEIGHT - 1);
+		} else {
+			pos = get_px_offset(fb, 0, line * CELL_HEIGHT);
+		}
 		memcpy(fb->fp + pos, fb->buf + pos, size);
 	}
 
