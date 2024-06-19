@@ -82,7 +82,7 @@ bool set_fbinfo(int fd, struct fb_info_t *info)
 
 	set_bitfield(&vinfo, &info->red, &info->green, &info->blue);
 
-	info->width  = vinfo.xres;
+	info->width  = vinfo.xres - DEAD_LINES;
 	info->height = vinfo.yres;
 	info->screen_size = finfo.smem_len;
 	info->line_length = finfo.line_length;
