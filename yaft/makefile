@@ -54,6 +54,9 @@ install: installshare
 	mkdir -p $(PREFIX)/bin/
 	install -m755 ./yaft $(PREFIX)/bin/yaft
 	install -m755 ./yaft_wall $(PREFIX)/bin/yaft_wall
+	mkdir -p $(PREFIX)/include/yaft
+	cp glyph.h $(PREFIX)/include/yaft/
+	cp glyph_bold.h $(PREFIX)/include/yaft/
 
 installx: installshare
 	mkdir -p $(PREFIX)/bin/
