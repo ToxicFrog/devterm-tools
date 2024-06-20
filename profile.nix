@@ -9,7 +9,7 @@ in symlinkJoin {
   name = "devterm-profile";
   paths = with pkgsCross.riscv64; [
     chezmoi nb rlwrap stdmanpages input-utils termsonic
-    zsh eza btop w3m toilet figlet
+    zsh zsh.man eza btop w3m toilet figlet
 
     (atuin.overrideAttrs (_: {
       depsBuildBuild = [ buildPackages.protobuf ];
