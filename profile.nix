@@ -63,7 +63,9 @@ in symlinkJoin {
       rsync -aPh ${./rootfs}/ /
       /etc/rc.local
       . /root/.nix-profile/etc/profile.d/nix.sh
-      mandb $(manpath -d)
+      echo -n "Rebuilding man index: "
+      mandb $(manpath -d 2>/dev/null) &>/dev/null
+      echo "done."
       # apt remove landscape-sysinfo
     '')
 
