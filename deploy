@@ -4,7 +4,9 @@ set -e
 
 DEVTERM=root@devterm-R01
 
+rm -f result
 nix-build profile.nix |& nom
+[[ -e result ]] || exit 1
 nix copy --to ssh://$DEVTERM result/
 ssh $DEVTERM "nix profile remove devterm-profile; nix profile install $(readlink result) && devterm-deploy"
 echo "Done!"
