@@ -39,10 +39,12 @@ int set_cell(struct terminal_t *term, int y, int x, const struct glyph_t *glyphp
 	struct cell_t cell, *cellp;
 	uint8_t color_tmp;
 
-	cell.glyphp = glyphp;
+	if (term->attribute & attr_mask[ATTR_BOLD] && glyphp->variants[GV_BOLD])
+		cell.glyphp = glyphp->variants[GV_BOLD];
+	else
+		cell.glyphp = glyphp;
 
-	cell.color_pair.fg = (term->attribute & attr_mask[ATTR_BOLD] && term->color_pair.fg <= 7) ?
-		term->color_pair.fg + BRIGHT_INC: term->color_pair.fg;
+	cell.color_pair.fg = term->color_pair.fg;
 	cell.color_pair.bg = (term->attribute & attr_mask[ATTR_BLINK] && term->color_pair.bg <= 7) ?
 		term->color_pair.bg + BRIGHT_INC: term->color_pair.bg;
 
@@ -189,25 +191,29 @@ const struct glyph_t *drcs_glyph(struct terminal_t *term, uint32_t code)
 		return term->glyph[SUBSTITUTE_HALF];
 }
 
-void addch(struct terminal_t *term, uint32_t code)
-{
-	int width;
-	const struct glyph_t *glyphp;
+const struct glyph_t *find_glyph(struct terminal_t *term, uint32_t code) {
+	const int width = wcwidth(code);
 
-	logging(DEBUG, "addch: U+%.4X\n", code);
-
-	width = wcwidth(code);
-
+	// TODO: support for NF plane here? Glyphs in the NF range need to use
+	// a different variant. Or we need to expand past UCS2.
 	if (width <= 0)                                /* zero width: not support combining characters */
-		return;
+		return NULL;
 	else if (0x100000 <= code && code <= 0x10FFFD) /* unicode private area: plane 16 (DRCSMMv1) */
-		glyphp = drcs_glyph(term, code);
+		return drcs_glyph(term, code);
 	else if (code >= UCS2_CHARS                    /* yaft support only UCS2 */
 		|| term->glyph[code] == NULL           /* missing glyph */
 		|| term->glyph[code]->width != width)  /* width unmatched */
-		glyphp = (width == 1) ? term->glyph[SUBSTITUTE_HALF]: term->glyph[SUBSTITUTE_WIDE];
+		return (width == 1) ? term->glyph[SUBSTITUTE_HALF]: term->glyph[SUBSTITUTE_WIDE];
 	else
-		glyphp = term->glyph[code];
+		return term->glyph[code];
+}
+
+void addch(struct terminal_t *term, uint32_t code)
+{
+	logging(DEBUG, "addch: U+%.4X\n", code);
+
+	const struct glyph_t *glyphp = find_glyph(term, code);
+	if (!glyphp) return;
 
 	if ((term->wrap_occurred && term->cursor.x == term->cols - 1) /* folding */
 		|| (glyphp->width == WIDE && term->cursor.x == term->cols - 1)) {
@@ -388,6 +394,13 @@ bool term_init(struct terminal_t *term, struct framebuffer_t *fb)
 
 	for (uint32_t gi = 0; gi < sizeof(glyphs) / sizeof(struct glyph_t); gi++)
 		term->glyph[glyphs[gi].code] = &glyphs[gi];
+
+	for (uint32_t gi = 0; gi < sizeof(glyphs_bold) / sizeof(struct glyph_t); gi++) {
+		struct glyph_t* base_glyph = term->glyph[glyphs_bold[gi].code];
+		if (!base_glyph) continue;
+		if (base_glyph->width != glyphs_bold[gi].width) continue;
+		base_glyph->variants[GV_BOLD] = &glyphs_bold[gi];
+	}
 
 	if (!term->glyph[DEFAULT_CHAR]
 		|| !term->glyph[SUBSTITUTE_HALF]

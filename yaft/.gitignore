@@ -2,5 +2,6 @@
 yaft
 yaftx
 glyph.h
+glyph_bold.h
 mkfont
 mkfont_bdf

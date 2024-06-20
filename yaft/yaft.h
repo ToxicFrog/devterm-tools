@@ -21,6 +21,7 @@
 #include <wchar.h>
 
 #include "glyph.h"
+#include "glyph_bold.h"
 #include "color.h"
 
 enum char_code {

@@ -102,6 +102,7 @@ bool dump_font(struct glyph_t *font[])
 {
 	int i, j, width, int_type;
 	uint8_t cell_width, cell_height;
+	const char * variant = getenv("BDF_VARIANT");
 
 	cell_width  = font[DEFAULT_CHAR]->width;
 	cell_height = font[DEFAULT_CHAR]->height;
@@ -118,17 +119,26 @@ bool dump_font(struct glyph_t *font[])
 		return false;
 	}
 
-	fprintf(stdout,
-		"struct glyph_t {\n"
-		"\tuint32_t code;\n"
-		"\tuint8_t width;\n"
-		"\tuint%d_t bitmap[%d];\n"
-		"};\n\n", int_type, cell_height);
+	if (!variant) {
+		fprintf(stdout,
+			"typedef uint%d_t bitmap_row_t;\n\n", int_type);
 
-	fprintf(stdout, "enum {\n\tCELL_WIDTH = %d,\n\tCELL_HEIGHT = %d\n};\n\n",
-		cell_width, cell_height);
+		fprintf(stdout,
+			"struct glyph_t {\n"
+			"\tuint32_t code;\n"
+			"\tuint8_t width;\n"
+			"\tbitmap_row_t bitmap[%d];\n"
+			"\tconst struct glyph_t *variants[%d];\n"
+			"};\n\n",
+			cell_height, NROF_VARIANTS);
 
-	fprintf(stdout, "static const struct glyph_t glyphs[] = {\n");
+		fprintf(stdout, "enum {\n\tCELL_WIDTH = %d,\n\tCELL_HEIGHT = %d\n};\n\n",
+			cell_width, cell_height);
+	}
+
+	fprintf(stdout, "static struct glyph_t glyphs%s%s[] = {\n",
+		variant ? "_" : "", variant ? variant : "");
+
 	for (i = 0; i < UCS2_CHARS; i++) {
 		width = wcwidth(i);
 
@@ -138,7 +148,7 @@ bool dump_font(struct glyph_t *font[])
 		fprintf(stdout, "\t{%d, %d, {", i, width);
 		for (j = 0; j < cell_height; j++)
 			fprintf(stdout, "0x%X%s", (unsigned int) font[i]->bitmap[j], (j == (cell_height - 1)) ? "": ", ");
-		fprintf(stdout, "}},\n");
+		fprintf(stdout, "}, {NULL,}, },\n");
 	}
 	fprintf(stdout, "};\n");
 	return true;

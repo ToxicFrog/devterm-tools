@@ -23,6 +23,12 @@ enum {
 	DEAD_LINES       = 0,      /* HACK: dead lines along right side of fb on devterm */
 };
 
+/* number of font variants */
+enum glyph_variant {
+	GV_BOLD = 0,
+	NROF_VARIANTS,
+};
+
 /* TERM value */
 const char *term_name = "yaft-256color";
 
