@@ -1,0 +1,12 @@
+[Unit]
+Description=DevTerm VT control via gamepad
+After=getty.target
+
+[Service]
+ExecStart=/nix/var/nix/profiles/default/bin/devterm-gamepad-listener
+Environment="TERM=yaft"
+Type=exec
+User=root
+
+[Install]
+WantedBy=multi-user.target

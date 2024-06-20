@@ -22,6 +22,8 @@
 #   BTN_TOP  BTN_TRIGGER
 #      BTN_THUMB2  BTN_THUMB
 
+set -e
+
 readonly -A BUTTONS=(
   BTN_BASE3 SELECT
   BTN_BASE4 START
@@ -46,6 +48,7 @@ function main {
     fi
     process-event $type $button $value
   done
+  exit 1
 }
 
 function process-event {

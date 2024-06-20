@@ -6,7 +6,8 @@ BATTERY=/sys/class/power_supply/axp20x-battery/capacity
 
 function splash {
   printf ' TTY %2d  •  %3d%%  •  %s ' "${NEXT_VT:-${VT}}" "$(cat $BATTERY)" "$(date +'%H:%M')" \
-  | toilet -t \
+  | toilet \
+    -w $cols \
     -d /root/.nix-profile/share/figlet/ \
     -f bdffonts/xcourb \
     -F border -F crop \

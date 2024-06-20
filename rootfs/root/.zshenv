@@ -1,4 +1,5 @@
 export ZDOTDIR="$HOME"
+export TERMINFO_DIRS="/nix/var/nix/profiles/default/share/terminfo:$TERMINFO_DIRS"
 
 # possible alternate colour scheme: %K{22}%F{10} for green rather than amber
 export PS1=$'%F{11}%K{130}%n@%m %~%E%f%k\n%(!.$.$)%f '

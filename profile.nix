@@ -66,6 +66,10 @@ in symlinkJoin {
       echo -n "Rebuilding man index: "
       mandb $(manpath -d 2>/dev/null) &>/dev/null
       echo "done."
+      echo -n "Reloading services: "
+      systemctl daemon-reload
+      systemctl restart devterm-controls.service
+      echo "done."
       # apt remove landscape-sysinfo
     '')
 
