@@ -1,56 +1,25 @@
-with import <unstable> {};
 let
-  yaft' = with pkgsCross.riscv64; yaft.overrideAttrs (old: {
+  unstable = import <unstable> {};
+  pkgs = unstable.pkgsCross.riscv64;
+
+  atuin = pkgs.atuin.overrideAttrs (_: with pkgs; {
+    depsBuildBuild = [ buildPackages.protobuf ];
+    buildInputs = [];
+    preBuild = ''
+      export PROTOC=${buildPackages.protobuf}/bin/protoc
+      export PROTOC_INCLUDE=${protobuf}/include
+    '';
+  });
+
+  micro = pkgs.micro.overrideAttrs (_: { postFixup = ""; });
+
+  yaft = pkgs.yaft.overrideAttrs (old: with pkgs; {
     depsBuildBuild = [ buildPackages.stdenv.cc ];
     nativeBuildInputs = [ buildPackages.ncurses ];
     src = ./yaft;
   });
-in symlinkJoin {
-  name = "devterm-profile";
-  paths = with pkgsCross.riscv64; [
-    chezmoi nb rlwrap stdmanpages input-utils termsonic
-    zsh zsh.man eza btop w3m toilet figlet
 
-    (atuin.overrideAttrs (_: {
-      depsBuildBuild = [ buildPackages.protobuf ];
-      buildInputs = [];
-      preBuild = ''
-        export PROTOC=${buildPackages.protobuf}/bin/protoc
-        export PROTOC_INCLUDE=${protobuf}/include
-      '';
-    }))
-
-    yaft' yaft'.terminfo
-
-    (micro.overrideAttrs (_: {
-      postFixup = "";
-    }))
-
-    # Remove SDL2 dependency
-    (sdl-jstest.overrideAttrs (_: {
-      cmakeFlags = [ "-DBUILD_SDL2_JSTEST=OFF" ];
-      buildInputs = [
-        (SDL.override { libpulseaudio = null; })
-        ncurses
-      ];
-    }))
-
-    # Unfortunately builds taskchampion alongside task, which depends on Ring,
-    # which does not support RISC-V.
-    # (taskwarrior3.overrideAttrs (_: {
-    #   # Remove xdg-open dependency
-    #   postPatch = "";
-    #   # Fix cross-compile
-    #   buildInputs = [ libuuid ];
-    #   cmakeFlags = [
-    #     "-DRust_CARGO_TARGET=riscv64gc-unknown-linux-gnu"
-    #     "--build" "build" "--target" "task_executable"
-    #   ];
-    #   preBuild = ''
-    #     export TARGET_CC=${stdenv.cc}/bin/gcc
-    #   '';
-    # }))
-
+  scripts = with pkgs; [
     (writeScriptBin "momovt" (builtins.readFile ./momovt))
     (writeScriptBin "momovt-banner" (builtins.readFile ./momovt-banner))
     (writeScriptBin "devterm-gamepad-listener" (builtins.readFile ./devterm-gamepad-listener))
@@ -72,11 +41,46 @@ in symlinkJoin {
       echo "done."
       # apt remove landscape-sysinfo
     '')
+  ];
+in pkgs.symlinkJoin {
+  name = "devterm-profile";
+  paths = with pkgs; [
+    atuin
+    btop
+    chezmoi
+    eza
+    figlet toilet
+    input-utils
+    micro
+    nb
+    rlwrap
+    stdmanpages
+    termsonic
+    w3m
+    yaft yaft.terminfo
+    zsh
+    zsh.man
+  ] ++ scripts;
+}
+    # Unfortunately builds taskchampion alongside task, which depends on Ring,
+    # which does not support RISC-V.
+    # (taskwarrior3.overrideAttrs (_: {
+    #   # Remove xdg-open dependency
+    #   postPatch = "";
+    #   # Fix cross-compile
+    #   buildInputs = [ libuuid ];
+    #   cmakeFlags = [
+    #     "-DRust_CARGO_TARGET=riscv64gc-unknown-linux-gnu"
+    #     "--build" "build" "--target" "task_executable"
+    #   ];
+    #   preBuild = ''
+    #     export TARGET_CC=${stdenv.cc}/bin/gcc
+    #   '';
+    # }))
+
 
     # needs a RISC-V JIT for javascript (?!): zellij
     # needs packaging: oscwrap
     # needs gnutls: taskwarrior
 
     # pick one of: vit taskwarrior-tui
-  ];
-}
