@@ -25,21 +25,11 @@ let
     (writeScriptBin "devterm-gamepad-listener" (builtins.readFile ./devterm-gamepad-listener))
     (writeScriptBin "colourtest" (builtins.readFile ../misc/eyecandy/colourtest))
     (writeScriptBin "nixflake" (builtins.readFile ../misc/eyecandy/nixflake))
-    (writeScriptBin "devterm-deploy" ''
-      ln -sf ${zsh}/bin/zsh /bin/
-      ln -sf /lib/systemd/system/rc-local.service /etc/systemd/system/multi-user.target.wants
-      rm -rf /etc/systemd/system/getty@tty1.service.d
-      rsync -aPh ${./rootfs}/ /
-      /etc/rc.local
-      . /root/.nix-profile/etc/profile.d/nix.sh
-      echo -n "Rebuilding man index: "
-      mandb $(manpath -d 2>/dev/null) &>/dev/null
-      echo "done."
-      echo -n "Reloading services: "
-      systemctl daemon-reload
-      systemctl restart devterm-controls.service
-      echo "done."
-      # apt remove landscape-sysinfo
+    (writeScriptBin "devterm-activate" ''
+      env \
+        NIX_ZSH=${pkgs.zsh} \
+        NIX_ROOTFS=${./rootfs} \
+        ${./devterm-activate}
     '')
   ];
 in pkgs.symlinkJoin {

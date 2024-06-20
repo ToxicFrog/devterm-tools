@@ -1,0 +1,29 @@
+#!/bin/bash
+
+# Put zsh somewhere stuff like getty and yaft can easily find it
+ln -sf ${NIX_ZSH?}/bin/zsh /bin/
+
+# Enable rc.local execution and disable the stock autologin
+ln -sf /lib/systemd/system/rc-local.service /etc/systemd/system/multi-user.target.wants
+rm -rf /etc/systemd/system/getty@tty1.service.d
+
+# Install the static files.
+rsync -aPh ${NIX_ROOTFS?}/ /
+
+# Run rc.local and source the nix-profile to pick up any configuration changes.
+/etc/rc.local
+. /root/.nix-profile/etc/profile.d/nix.sh
+
+echo -n "Rebuilding man index: "
+mandb $(manpath -d 2>/dev/null) &>/dev/null
+echo "done."
+
+echo -n "Reloading services: "
+systemctl daemon-reload
+systemctl restart devterm-controls.service
+echo "done."
+
+# TODO: if we haven't done it yet, automatically remove any unwanted packages
+# it ships with, and install any needed packages.
+# This requires building a list of what we do and don't need by going through
+# root's shell histories.

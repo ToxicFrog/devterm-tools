@@ -105,10 +105,10 @@ function events/START/- {
     # Wake from sleep
     cpi-backlight on
     momovt hide
-    </dev/tty0 setterm --blank=poke
+    </dev/tty0 TERM=linux setterm --blank=poke
   else
     # Sleep
-    </dev/tty0 setterm --blank=force
+    </dev/tty0 TERM=linux setterm --blank=force
     cpi-backlight off
     momovt show 62
   fi
