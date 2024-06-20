@@ -5,8 +5,8 @@ export TERMINFO_DIRS="/nix/var/nix/profiles/default/share/terminfo:$TERMINFO_DIR
 export PS1=$'%F{11}%K{130}%n@%m %~%E%f%k\n%(!.$.$)%f '
 export RPROMPT="%{$(echotc UP 1)%}%(?,,%K{1}%F{15}%B (exit %?%) )%K{130}%F{11} [%D{%F %T}]%f%k%b%{$(echotc DO 1)%}"
 
-export LANG=en_CA.UTF-8
-export LC_TIME=en_DK.UTF-8
+export LANG=en_US.UTF-8
+# export LC_TIME=en_DK.UTF-8
 
 export EDITOR=micro
 export VISUAL=micro
