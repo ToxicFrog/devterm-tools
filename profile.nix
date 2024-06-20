@@ -1,5 +1,11 @@
 with import <unstable> {};
-symlinkJoin {
+let
+  yaft' = with pkgsCross.riscv64; yaft.overrideAttrs (old: {
+    depsBuildBuild = [ buildPackages.stdenv.cc ];
+    nativeBuildInputs = [ buildPackages.ncurses ];
+    src = ./yaft;
+  });
+in symlinkJoin {
   name = "devterm-profile";
   paths = with pkgsCross.riscv64; [
     chezmoi nb rlwrap stdmanpages input-utils termsonic
@@ -14,7 +20,7 @@ symlinkJoin {
       '';
     }))
 
-    yaft yaft.terminfo
+    yaft' yaft'.terminfo
 
     (micro.overrideAttrs (_: {
       postFixup = "";
