@@ -42,7 +42,6 @@ function main {
   |& egrep --line-buffered ': (KEY|ABS)' \
   | stdbuf -o L cut -d' ' -f2-4 \
   | while read -r type button value; do
-  	echo "EVT: $type $button $value"
     if [[ $type == KEY ]]; then
       button="${BUTTONS[$button]}"
     fi
@@ -81,9 +80,9 @@ function process-event {
 # if the button is select/start, $1 is "pressed" or "released" so
 # you can catch keyup events.
 function dispatch-event {
-  echo "Dispatch: $1"
   if [[ $(whence -w events/$1) == *": function" ]]; then
-    time events/$1 "$@"
+    echo "Dispatch: events/$1" "$@"
+    events/$1 "$@"
   fi
 }
 
