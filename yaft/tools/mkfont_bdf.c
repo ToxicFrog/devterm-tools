@@ -3,6 +3,22 @@
 #include "util.h"
 #include "bdf.h"
 
+int actual_width(const struct glyph_t *glyph, const int code, const int cell_width) {
+	int width = wcwidth(code);
+	// 0 width means it doesn't move the cursor (e.g. it's a zwj). >0 means
+	// it's a normal character. In either case we take the width as given.
+	if (width >= 0) return width;
+	// -1 is indeterminate/unprintable/"it's complicated"
+	// For C0 (7bit) and C1 (8bit) control codes, that's correct.
+	if (code < 0x20 || code >= 0x80 && code < 0xA0) return width;
+	// For stuff outside that range, if the glyph has a defined bitmap which is
+	// an even multiple of the cell width, we assume it's something in the
+	// unicode private areas like Powerline symbols, and compute the width from
+	// the bitmap size.
+	if (glyph->width % cell_width != 0) return -1;
+	return glyph->width/cell_width;
+}
+
 /* mkfont_bdf functions */
 bool map_glyph(struct glyph_t *font[],
 	struct glyph_list_t *glist_head, struct glyph_t *default_glyph)
@@ -25,9 +41,11 @@ bool map_glyph(struct glyph_t *font[],
 		if (listp->code >= UCS2_CHARS)
 			continue;
 
-		width = wcwidth(listp->code);
+    // We need the handle the case where powerline & nerdfont symbols have -1
 		glyph = listp->glyph;
-		if ((width <= 0)                                /* not printable */
+		width = actual_width(glyph, listp->code, cell_width);
+
+		if ((width <= 0)                              /* not printable */
 			|| (glyph->height != cell_height)           /* invalid font height */
 			|| (glyph->width  != (cell_width * width))) /* invalid font width */
 			continue;
@@ -123,6 +141,11 @@ bool dump_font(struct glyph_t *font[])
 		fprintf(stdout,
 			"typedef uint%d_t bitmap_row_t;\n\n", int_type);
 
+		// TODO: figure out how to rig things so that we don't need to store so
+		// much duplicate information in the variants, and just store the bitmaps.
+		// This will require some reworking of how terminal drawing works because
+		// right now we need the fully realized glyph_t* pointing to the correct
+		// variant to pass to the drawing code.
 		fprintf(stdout,
 			"struct glyph_t {\n"
 			"\tuint32_t code;\n"
@@ -140,10 +163,10 @@ bool dump_font(struct glyph_t *font[])
 		variant ? "_" : "", variant ? variant : "");
 
 	for (i = 0; i < UCS2_CHARS; i++) {
-		width = wcwidth(i);
-
 		if (font[i] == NULL) /* glyph not found */
 			continue;
+
+		width = actual_width(font[i], i, cell_width);
 
 		fprintf(stdout, "\t{%d, %d, {", i, width);
 		for (j = 0; j < cell_height; j++)
