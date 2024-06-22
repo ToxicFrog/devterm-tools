@@ -2,6 +2,9 @@
 
 PATH=/nix/var/nix/profiles/default/bin/:$PATH
 
+# Turn off alt+arrows to switch VTs
+dumpkeys -k | egrep -v '(Incr|Decr|Last)_Console' | loadkeys
+
 momovt config \
   width 5 height 3 \
   wrap 0 \
