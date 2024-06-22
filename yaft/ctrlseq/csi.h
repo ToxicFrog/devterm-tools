@@ -223,25 +223,6 @@ void erase_char(struct terminal_t *term, struct parm_t *parm)
 
 uint8_t rgb2index(uint8_t r, uint8_t g, uint8_t b)
 {
-	/* SGR: Set Graphic Rendition (special case)
-	 * 	special color selection (from 256color index or as a 24bit color value)
-	 *
-	 *	ESC [ 38 ; 5 ; Ps m
-	 *	ESC [ 48 ; 5 ; Ps m
-	 *		select foreground/background color from 256 color index
-	 *
-	 *	ESC [ 38 ; 2 ; r ; g ; b m
-	 *	ESC [ 48 ; 2 ; r ; g ; b m
-	 *		select foreground/background color as a 24bit color value
-	 *
-	 * 	according to ITU T.416 (https://www.itu.int/rec/T-REC-T.416/en)
-	 * 	this format is valid (but most of terminals don't support)
-	 *	ESC [ 38 : 5 : Ps m
-	 *	ESC [ 48 : 5 : Ps m
-	 *
-	 *	ESC [ 48 : 2 : r : g : b m
-	 *	ESC [ 38 : 2 : r : g : b m
-	 */
 	int padding;
 	uint8_t index;
 
@@ -294,6 +275,76 @@ uint8_t rgb2index(uint8_t r, uint8_t g, uint8_t b)
 	return index;
 }
 
+/* SGR: Set Graphic Rendition (special case)
+ * 	special color selection (from 256color index or as a 24bit color value)
+ *
+ * 	according to ITU T.416 (https://www.itu.int/rec/T-REC-T.416/en)
+ * 	this is the correct format, supported by some but not all ttys
+ *
+ *	ESC [ 38 : 5 : Ps m
+ *	ESC [ 48 : 5 : Ps m
+ *		select foreground/background color from 256 color index
+ *
+ *	ESC [ 48 : 2 : 0 : r : g : b m
+ *	ESC [ 38 : 2 : 0 : r : g : b m
+ *		select foreground/background color as a 24bit color value
+ *
+ *   these are the formats used by old versions of xterm, which many
+ *   terminals still support, some of which support only these and not
+ *   the standard versions above
+ *
+ *	ESC [ 38 ; 5 ; Ps m
+ *	ESC [ 48 ; 5 ; Ps m
+ *
+ *	ESC [ 38 ; 2 ; r ; g ; b m
+ *	ESC [ 48 ; 2 ; r ; g ; b m
+ *
+ *   yaft supports both, since a lot of programs just blindly send one
+ *   or the other and hope it works. It is also tolerant of leaving out
+ *   the 0 from the ITU version, or including it in the xterm version.
+ */
+
+// Execute an extended (8bpp or 24bpp) SGR color command.
+// Color is written into *color; return value is the number of additional
+// SGR parameters consumed, not counting the initial 38/48.
+int extended_sgr(struct parm_t *parm, int i, uint8_t *color) {
+	if (strchr(parm->argv[i], ':')) {
+		// client is using ITU : format rather than legacy-xterm ; format
+		// parse this param into subparams and recurse to handle it
+		struct parm_t sub_parm;
+		reset_parm(&sub_parm);
+		parse_arg(parm->argv[i], &sub_parm, ':', isdigit);
+		extended_sgr(&sub_parm, 0, color);
+		return 0;
+	}
+
+	// 8bpp indexed color.
+	if ((i + 2) < parm->argc && dec2num(parm->argv[i + 1]) == 5) {
+		*color = dec2num(parm->argv[i + 2]);
+		return 2;
+	}
+
+	// 24bpp direct color. If there are exactly five subparams left we assume this
+	// is the five-arg version that takes a colorspace ID, which we ignore.
+	if ((i + 6) == parm->argc && dec2num(parm->argv[i + 1]) == 2) {
+		*color = rgb2index(
+			dec2num(parm->argv[i + 3]),
+			dec2num(parm->argv[i + 4]),
+			dec2num(parm->argv[i + 5]));
+		return 5;
+	}
+
+	// Otherwise we assume it's the 4-param version without the colorspace.
+	if ((i* + 4) < parm->argc && dec2num(parm->argv[i + 1]) == 2) {
+		*color = rgb2index(
+			dec2num(parm->argv[i + 2]),
+			dec2num(parm->argv[i + 3]),
+			dec2num(parm->argv[i + 4]));
+		return 4;
+	}
+	return -1;
+}
+
 void set_attr(struct terminal_t *term, struct parm_t *parm)
 {
 	/* SGR: Set Graphic Rendition
@@ -341,31 +392,13 @@ void set_attr(struct terminal_t *term, struct parm_t *parm)
 		} else if (30 <= num && num <= 37) {   /* set foreground */
 			term->color_pair.fg = (num - 30);
 		} else if (num == 38) {                /* special foreground color selection */
-			/* select foreground color from 256 color index */
-			if ((i + 2) < parm->argc && dec2num(parm->argv[i + 1]) == 5) {
-				term->color_pair.fg = dec2num(parm->argv[i + 2]);
-				i += 2;
-			/* select foreground color from specified rgb color */
-			} else if ((i + 4) < parm->argc && dec2num(parm->argv[i + 1]) == 2) {
-				term->color_pair.fg = rgb2index(dec2num(parm->argv[i + 2]),
-					dec2num(parm->argv[i + 3]), dec2num(parm->argv[i + 4]));
-				i += 4;
-			}
+			i += extended_sgr(parm, i, &term->color_pair.fg);
 		} else if (num == 39) {                /* reset foreground */
 			term->color_pair.fg = DEFAULT_FG;
 		} else if (40 <= num && num <= 47) {   /* set background */
 			term->color_pair.bg = (num - 40);
 		} else if (num == 48) {                /* special background  color selection */
-			/* select background color from 256 color index */
-			if ((i + 2) < parm->argc && dec2num(parm->argv[i + 1]) == 5) {
-				term->color_pair.bg = dec2num(parm->argv[i + 2]);
-				i += 2;
-			/* select background color from specified rgb color */
-			} else if ((i + 4) < parm->argc && dec2num(parm->argv[i + 1]) == 2) {
-				term->color_pair.bg = rgb2index(dec2num(parm->argv[i + 2]),
-					dec2num(parm->argv[i + 3]), dec2num(parm->argv[i + 4]));
-				i += 4;
-			}
+			i += extended_sgr(parm, i, &term->color_pair.bg);
 		} else if (num == 49) {                /* reset background */
 			term->color_pair.bg = DEFAULT_BG;
 		} else if (90 <= num && num <= 97) {   /* set bright foreground */

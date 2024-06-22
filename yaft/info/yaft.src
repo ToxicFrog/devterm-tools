@@ -5,7 +5,7 @@ yaft-256color|yet another framebuffer terminal,
 
 	clear=\E\\\E[H\E[J,
 
-	nel=\EE, cr=^M, 
+	nel=\EE, cr=^M,
 
 	smcup=\r,rmcup=\r,
 
@@ -40,8 +40,8 @@ yaft-256color|yet another framebuffer terminal,
 
 	op=\E[39;49m,
 
-	setab=\E[%?%p1%{8}%<%t4%p1%d%e%p1%{16}%<%t10%p1%{8}%-%d%e48;5;%p1%d%;m,
-	setaf=\E[%?%p1%{8}%<%t3%p1%d%e%p1%{16}%<%t9%p1%{8}%-%d%e38;5;%p1%d%;m,
+	setab=\E[%?%p1%{8}%<%t4%p1%d%e%p1%{16}%<%t10%p1%{8}%-%d%e48:5:%p1%d%;m,
+	setaf=\E[%?%p1%{8}%<%t3%p1%d%e%p1%{16}%<%t9%p1%{8}%-%d%e38:5:%p1%d%;m,
 
 	sgr0=\E[m,
 	sgr=\E[0%?%p6%t;1%;%?%p2%t;4%;%?%p1%p3%|%t;7%;%?%p4%t;5%;m,

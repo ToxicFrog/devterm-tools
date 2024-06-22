@@ -2,7 +2,7 @@
 yaft-256color|yet another framebuffer terminal:\
 	:am:ms:ut:xn:\
 	:Co#256:co#80:it#8:li#24:pa#32767:\
-	:&7=^Z:@7=\E[4~:AB=\E[48;5;%dm:AF=\E[38;5;%dm:AL=\E[%dL:\
+	:&7=^Z:@7=\E[4~:AB=\E[48:5:%dm:AF=\E[38:5:%dm:AL=\E[%dL:\
 	:DC=\E[%dP:DL=\E[%dM:DO=\E[%dB:F1=\E[23~:F2=\E[24~:\
 	:F3=\E[25~:F4=\E[26~:F5=\E[28~:F6=\E[29~:F7=\E[31~:\
 	:F8=\E[32~:F9=\E[33~:FA=\E[34~:IC=\E[%d@:K2=\E[G:Km=\E[M:\
