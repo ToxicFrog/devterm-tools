@@ -159,6 +159,24 @@ int check_fds(fd_set *fds, struct timeval *tv, int input, int master)
 	return eselect(master + 1, fds, NULL, NULL, tv);
 }
 
+void process_shifted_arrows(int fd, int modifiers, char ch) {
+		// Translate kernel modifier state into xterm modifier state.
+		// xterm uses shift=1, alt=2, ctrl=4, then adds one to the final value
+		uint8_t mod_code = 1
+			+ ((modifiers & 1<<KG_SHIFT) ? 1 : 0)
+			+ ((modifiers & 1<<KG_ALT) ? 2 : 0)
+			+ ((modifiers & 1<<KG_CTRL) ? 4 : 0);
+		dprintf(fd, "\x1B[1;%d%c", mod_code, ch);
+}
+
+void process_shifted_nav(int fd, int modifiers, char ch) {
+		uint8_t mod_code = 1
+			+ ((modifiers & 1<<KG_SHIFT) ? 1 : 0)
+			+ ((modifiers & 1<<KG_ALT) ? 2 : 0)
+			+ ((modifiers & 1<<KG_CTRL) ? 4 : 0);
+		dprintf(fd, "\x1B[%c;%d~", ch, mod_code);
+}
+
 void process_input(int fd, uint8_t * buf, ptrdiff_t size) {
 	uint8_t * cur = buf;
 	int modifiers = get_modifier_state(STDIN_FILENO);
@@ -176,35 +194,32 @@ void process_input(int fd, uint8_t * buf, ptrdiff_t size) {
 		// bother re-calling memmem() because we know we're at the end of the buffer.
 		if (cur - buf >= size-2) break;
 
-		// If it's not an arrow key, similarly, we don't care and pass
-		// it through without modification.
-		// TODO: handle the sixkey block as well; kernel sends these as:
-		//   CSI N ~
-		// where N=1-6 is home, insert, delete, end, pgup, pgdn.
-		// To match xterm behaviour we should send these as:
-		//   CSI N ; M ~
-		// where M is the same modifier value we'd send for arrows.
-		if (cur[2] < 'A' || cur[2] > 'D') {
-			cur += 2;
+		// Arrow keys are CSI A through CSI D for up/down/right/left.
+		if (cur[2] >= 'A' && cur[2] <= 'D') {
+			ewrite(fd, buf, cur-buf);
+			process_shifted_arrows(fd, modifiers, cur[2]);
+			cur += 3;
+			size -= cur - buf;
+			buf = cur;
 			continue;
 		}
 
-		// Ok, now we know it's a move key and the user is holding down modifiers.
-		// Flush the buffer so far.
-		ewrite(fd, buf, cur-buf);
+		// Nav keys. These sequences are one byte longer:
+		// CSI 1 ~ through CSI 6 ~ for home/ins/del/end/pgup/pgdn.
+		if (cur - buf >= size-3) break;
 
-		// Translate kernel modifier state into xterm modifier state.
-		// xterm uses shift=1, alt=2, ctrl=4, then adds one to the final value
-		uint8_t mod_code = 1
-			+ ((modifiers & 1<<KG_SHIFT) ? 1 : 0)
-			+ ((modifiers & 1<<KG_ALT) ? 2 : 0)
-			+ ((modifiers & 1<<KG_CTRL) ? 4 : 0);
-		dprintf(fd, "\x1B[1;%d%c", mod_code, cur[2]);
+		if (cur[3] == '~' && cur[2] >= '1' && cur[2] <= '6') {
+			ewrite(fd, buf, cur-buf);
+			process_shifted_nav(fd, modifiers, cur[2]);
+			cur += 4;
+			size -= cur - buf;
+			buf = cur;
+			continue;
+		}
 
-		// Now skip the buffer past the control code we just replaced.
-		cur += 3;
-		size -= cur - buf;
-		buf = cur;
+		// It's not anything we care about, so just advance the cursor past it and
+		// keep going.
+		cur += 2;
 	}
 	ewrite(fd, buf, size);
 }
