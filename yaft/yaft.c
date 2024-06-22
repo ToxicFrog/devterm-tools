@@ -1,5 +1,9 @@
 /* See LICENSE for licence details. */
 /* yaft.c: include main function */
+
+// for memmem()
+#define _GNU_SOURCE
+
 #include "yaft.h"
 #include "conf.h"
 #include "util.h"
@@ -10,6 +14,10 @@
 #include "ctrlseq/osc.h"
 #include "ctrlseq/dcs.h"
 #include "parse.h"
+
+#include <stddef.h>
+#include <stdio.h>
+#include <string.h>
 
 void sig_handler(int signo)
 {
@@ -151,6 +159,56 @@ int check_fds(fd_set *fds, struct timeval *tv, int input, int master)
 	return eselect(master + 1, fds, NULL, NULL, tv);
 }
 
+void process_input(int fd, uint8_t * buf, ptrdiff_t size) {
+	uint8_t * cur = buf;
+	int modifiers = get_modifier_state(STDIN_FILENO);
+
+	if (!modifiers) {
+		// No modifier keys held down, so we don't need to do anything, yay
+		ewrite(fd, buf, size);
+		return;
+	}
+
+	while ((cur = memmem(cur, size, "\x1B[", 2)) != NULL) {
+		// Found a CSI sequence. First some checks to see if we care about it.
+		// If it's at the end of the buffer and there's no room for a split escape
+		// sequence, just give up. Hopefully this is vanishingly rare. We don't
+		// bother re-calling memmem() because we know we're at the end of the buffer.
+		if (cur - buf >= size-2) break;
+
+		// If it's not an arrow key, similarly, we don't care and pass
+		// it through without modification.
+		// TODO: handle the sixkey block as well; kernel sends these as:
+		//   CSI N ~
+		// where N=1-6 is home, insert, delete, end, pgup, pgdn.
+		// To match xterm behaviour we should send these as:
+		//   CSI N ; M ~
+		// where M is the same modifier value we'd send for arrows.
+		if (cur[2] < 'A' || cur[2] > 'D') {
+			cur += 2;
+			continue;
+		}
+
+		// Ok, now we know it's a move key and the user is holding down modifiers.
+		// Flush the buffer so far.
+		ewrite(fd, buf, cur-buf);
+
+		// Translate kernel modifier state into xterm modifier state.
+		// xterm uses shift=1, alt=2, ctrl=4, then adds one to the final value
+		uint8_t mod_code = 1
+			+ ((modifiers & 1<<KG_SHIFT) ? 1 : 0)
+			+ ((modifiers & 1<<KG_ALT) ? 2 : 0)
+			+ ((modifiers & 1<<KG_CTRL) ? 4 : 0);
+		dprintf(fd, "\x1B[1;%d%c", mod_code, cur[2]);
+
+		// Now skip the buffer past the control code we just replaced.
+		cur += 3;
+		size -= cur - buf;
+		buf = cur;
+	}
+	ewrite(fd, buf, size);
+}
+
 int main(int argc, char *const argv[])
 {
 	extern const char *shell_cmd; /* defined in conf.h */
@@ -169,7 +227,7 @@ int main(int argc, char *const argv[])
 	/* init */
 	if (setlocale(LC_ALL, "") == NULL) /* for wcwidth() */
 		logging(WARN, "setlocale failed\n");
-	
+
 	if (!tty_init(&termios_orig)) {
 		logging(FATAL, "tty initialize failed\n");
 		goto tty_init_failed;
@@ -206,8 +264,9 @@ int main(int argc, char *const argv[])
 			continue;
 
 		if (FD_ISSET(STDIN_FILENO, &fds)) {
-			if ((size = read(STDIN_FILENO, buf, BUFSIZE)) > 0)
-				ewrite(term.fd, buf, size);
+			if ((size = read(STDIN_FILENO, buf, BUFSIZE)) > 0) {
+				process_input(term.fd, buf, size);
+			}
 		}
 		if (FD_ISSET(term.fd, &fds)) {
 			if ((size = read(term.fd, buf, BUFSIZE)) > 0) {

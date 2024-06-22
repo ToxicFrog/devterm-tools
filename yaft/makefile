@@ -65,7 +65,7 @@ installx: installshare
 installshare:
 	mkdir -p $(MANPREFIX)/man1/ $(TERMPREFIX)
 	install -m644 ./man/yaft.1 $(MANPREFIX)/man1/yaft.1
-	tic -o $(TERMPREFIX) info/yaft.src
+	tic -x -o $(TERMPREFIX) info/yaft.src
 
 uninstall:
 	rm -f $(PREFIX)/bin/yaft

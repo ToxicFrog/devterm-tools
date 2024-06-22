@@ -2,6 +2,9 @@
 #include <linux/fb.h>
 #include <linux/vt.h>
 #include <linux/kd.h>
+#include <linux/keyboard.h>
+#include <linux/tiocl.h>
+#include <sys/ioctl.h>
 
 typedef struct fb_cmap cmap_t;
 
@@ -101,4 +104,12 @@ bool set_fbinfo(int fd, struct fb_info_t *info)
 	}
 
 	return true;
+}
+
+int get_modifier_state(int fd) {
+	int modifiers = 0;
+	*(uint8_t*)(&modifiers) = TIOCL_GETSHIFTSTATE;
+	if (ioctl(fd, TIOCLINUX, &modifiers) < 0)
+		return 0; // just give up
+	return modifiers;
 }
