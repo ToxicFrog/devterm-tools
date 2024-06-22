@@ -221,7 +221,10 @@ function cmd/switch {
 }
 
 function cmd/swap {
-  cmd/switch "$(state prev)"
+  local next=$(state prev)
+  state prev $(state current)
+  state current $next
+  chvt $next
 }
 
 # No splash screen on show/hide, since these are meant to be used for showing
