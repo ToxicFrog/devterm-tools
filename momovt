@@ -271,6 +271,11 @@ function cmd/ui/show {
 
 function cmd/ui/commit {
   [[ $(state ui) == 0 ]] && return
+  if [[ $(state current) == $(state ui_vt) ]]; then
+    # Don't adjust prev pointer if the user didn't ask to switch
+    cmd/ui/cancel
+    return
+  fi
   state prev $(state current)
   state current $(state ui_vt)
   cmd/ui/cancel
