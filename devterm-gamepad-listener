@@ -87,7 +87,7 @@ function dispatch-event {
 }
 
 function events/SELECT/- {
-  [[ $2 == pressed ]] && momovt swap;
+  if [[ $2 == pressed ]]; then momovt swap; fi
 }
 
 SLEEPTIMER=0
