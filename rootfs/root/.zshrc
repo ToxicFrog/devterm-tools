@@ -3,7 +3,10 @@
 alias rcreload="source \"$ZDOTDIR/.zshenv\" && source \"$ZDOTDIR/.zshrc\""
 
 # Enable G1 line drawing character set if stdin isatty
-[[ -t 0 ]] && printf '\x1B)0'
+if [[ -t 0 ]]; then
+  printf '\x1B)0'
+  nixflake --random
+fi
 
 # Make run-help/alt-H look in builtin help before man pages
 unalias run-help 2>/dev/null
