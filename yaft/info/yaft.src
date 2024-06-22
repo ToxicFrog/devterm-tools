@@ -60,9 +60,22 @@ yaft-256color|yet another framebuffer terminal,
 # Arrow keys
 	kcub1=\E[D, kcud1=\E[B, kcuf1=\E[C, kcuu1=\E[A,
 
-# Shifted arrow keys; kind/kri intentional duplicates of kDN/kUP since not
-# all terminals check the same ones.
-	kLFT=\E[1;2D, kDN=\E[1;2B, kRIT=\E[1;2C, kUP=\E[1;2A,
+# Arrow keys with modifiers held.
+# kUP/DN/RIT/LFT are the "official" ones and cover only the shift key.
+# The versions suffixed 3-8 cover other modifier keys and combinations thereof.
+# Some programs will automatically infer those values based on just having
+# the base versions defined, but let's not count on that and instead define
+# all of them explicitly.
+	kUP=\E[1;2A, kUP3=\E[1;3A, kUP4=\E[1;4A, kUP5=\E[1;5A,
+	kUP6=\E[1;6A, kUP7=\E[1;7A, kUP8=\E[1;8A,
+	kDN=\E[1;2B, kDN3=\E[1;3B, kDN4=\E[1;4B, kDN5=\E[1;5B,
+	kDN6=\E[1;6B, kDN7=\E[1;7B, kDN8=\E[1;8B,
+	kRIT=\E[1;2C, kRIT3=\E[1;3C, kRIT4=\E[1;4C, kRIT5=\E[1;5C,
+	kRIT6=\E[1;6C, kRIT7=\E[1;7C, kRIT8=\E[1;8C,
+	kLFT=\E[1;2D, kLFT3=\E[1;3D, kLFT4=\E[1;4D, kLFT5=\E[1;5D,
+	kLFT6=\E[1;6D, kLFT7=\E[1;7D, kLFT8=\E[1;8D,
+
+# Compatibility with some programs that don't check for kUP* and kDN*.
 	kind=\E[1;2B, kri=\E[1;2A,
 
 	kb2=\E[G, kbs=\177, kcbt=\E[Z,
