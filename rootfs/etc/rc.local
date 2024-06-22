@@ -2,8 +2,11 @@
 
 PATH=/nix/var/nix/profiles/default/bin/:$PATH
 
-# Turn off alt+arrows to switch VTs
-dumpkeys -k | egrep -v '(Incr|Decr|Last)_Console' | loadkeys
+# Turn off alt+arrows to switch VTs, and shift+nav keys to scroll
+dumpkeys -k \
+| egrep -v '(Incr|Decr|Last)_Console' \
+| egrep -v 'Scroll_(Backward|Forward)' \
+| loadkeys
 
 momovt config \
   width 5 height 3 \
