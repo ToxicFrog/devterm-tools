@@ -40,7 +40,7 @@ glyph.h: mkfont_bdf
 	./mkfont_bdf table/alias fonts/Tamzen10x20r.bdf fonts/Powerline10x20.bdf fonts/dylex_10x20.bdf > glyph.h
 
 glyph_bold.h: mkfont_bdf
-	BDF_VARIANT=bold ./mkfont_bdf table/alias fonts/TamzenForPowerline10x20b.bdf > glyph_bold.h
+	BDF_VARIANT=bold ./mkfont_bdf table/alias fonts/Tamzen10x20b.bdf fonts/Powerline10x20.bdf > glyph_bold.h
 
 glyph_italic.h: mkfont_bdf
 	BDF_VARIANT=italic ./mkfont_bdf table/alias fonts/dylex_10x20O.bdf > glyph_italic.h
