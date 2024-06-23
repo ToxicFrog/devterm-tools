@@ -6,6 +6,7 @@ PATH=/nix/var/nix/profiles/default/bin/:$PATH
 dumpkeys -k \
 | egrep -v '(Incr|Decr|Last)_Console' \
 | egrep -v 'Scroll_(Backward|Forward)' \
+| egrep -v KeyboardSignal \
 | loadkeys
 
 momovt config \
