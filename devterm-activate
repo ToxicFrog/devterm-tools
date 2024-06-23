@@ -23,7 +23,19 @@ systemctl daemon-reload
 systemctl restart devterm-controls.service
 echo "done."
 
+[[ -h /etc/resolve.conf ]] && rm /etc/resolv.conf
+
+exit 0
+
 # TODO: if we haven't done it yet, automatically remove any unwanted packages
 # it ships with, and install any needed packages.
 # This requires building a list of what we do and don't need by going through
 # root's shell histories.
+
+systemctl disable \
+  cups cups-browsed \
+  systemd-networkd systemd-resolved \
+  networkd-dispatcher
+apt remove \
+  unattended-upgrades update-notifier-common whoopsie \
+  landscape-common landscape-sysinfo snap\*
