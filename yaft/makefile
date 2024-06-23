@@ -11,7 +11,7 @@ XLDFLAGS ?= -lX11
 HDR = glyph.h yaft.h conf.h color.h parse.h terminal.h util.h \
 	ctrlseq/esc.h ctrlseq/csi.h ctrlseq/osc.h ctrlseq/dcs.h \
 	fb/common.h fb/linux.h fb/freebsd.h fb/netbsd.h fb/openbsd.h \
-	x/x.h glyph_bold.h
+	x/x.h glyph_bold.h glyph_italic.h glyph_bolditalic.h
 
 PREFIX ?= $(DESTDIR)/usr/local
 MANPREFIX ?= $(PREFIX)/share/man
@@ -37,10 +37,16 @@ glyph.h: mkfont_bdf
 	# ALIAS: glyph substitution rule file (see table/alias for more detail)
 	# BDF1 BDF2 BDF3...: monospace bdf files (must be the same size)
 	# If there is more than one glyph of the same codepoint, the glyph included in the first bdf file is choosen.
-	./mkfont_bdf table/alias fonts/TamzenForPowerline10x20r.bdf > glyph.h
+	./mkfont_bdf table/alias fonts/Tamzen10x20r.bdf fonts/Powerline10x20.bdf fonts/dylex_10x20.bdf > glyph.h
 
 glyph_bold.h: mkfont_bdf
 	BDF_VARIANT=bold ./mkfont_bdf table/alias fonts/TamzenForPowerline10x20b.bdf > glyph_bold.h
+
+glyph_italic.h: mkfont_bdf
+	BDF_VARIANT=italic ./mkfont_bdf table/alias fonts/dylex_10x20O.bdf > glyph_italic.h
+
+glyph_bolditalic.h: mkfont_bdf
+	BDF_VARIANT=bolditalic ./mkfont_bdf table/alias fonts/dylex_10x20BO.bdf > glyph_bolditalic.h
 
 yaft: yaft.c $(HDR)
 	# If you want to change configuration, please modify conf.h before make (see conf.h for more detail)

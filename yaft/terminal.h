@@ -40,10 +40,12 @@ int set_cell(struct terminal_t *term, int y, int x, const struct glyph_t *glyphp
 	uint8_t color_tmp;
 
 	cell.glyphp = glyphp;
+	cell.variant = GV_NORMAL;
+
 	if (term->attribute & attr_mask[ATTR_BOLD])
 		cell.variant = GV_BOLD;
-	else
-		cell.variant = GV_NORMAL;
+	if (term->attribute & attr_mask[ATTR_ITALIC])
+		cell.variant = (cell.variant == GV_NORMAL) ? GV_ITALIC : GV_BOLDITALIC;
 
 	cell.color_pair.fg = term->color_pair.fg;
 	cell.color_pair.bg = (term->attribute & attr_mask[ATTR_BLINK] && term->color_pair.bg <= 7) ?
@@ -349,6 +351,14 @@ void term_die(struct terminal_t *term)
 	free(term->cells);
 }
 
+void init_variant(struct terminal_t *term, int variant, struct variant_t glyphs[], size_t size) {
+	for (uint32_t gi = 0; gi < size; gi++) {
+		struct glyph_t* base_glyph = (struct glyph_t*)term->glyph[glyphs[gi].code];
+		if (!base_glyph) continue;
+		base_glyph->variants[variant] = &(glyphs[gi].bitmap[0]);
+	}
+}
+
 bool term_init(struct terminal_t *term, struct framebuffer_t *fb)
 {
 	extern const uint32_t color_list[COLORS]; /* global */
@@ -396,12 +406,9 @@ bool term_init(struct terminal_t *term, struct framebuffer_t *fb)
 	for (uint32_t gi = 0; gi < sizeof(glyphs) / sizeof(struct glyph_t); gi++)
 		term->glyph[glyphs[gi].code] = &glyphs[gi];
 
-	for (uint32_t gi = 0; gi < sizeof(glyphs_bold) / sizeof(struct variant_t); gi++) {
-		struct glyph_t* base_glyph = (struct glyph_t*)term->glyph[glyphs_bold[gi].code];
-		if (!base_glyph) continue;
-		// if (base_glyph->width != glyphs_bold[gi].width) continue;
-		base_glyph->variants[GV_BOLD] = &(glyphs_bold[gi].bitmap[0]);
-	}
+	init_variant(term, GV_BOLD, glyphs_bold, sizeof(glyphs_bold) / sizeof(struct variant_t));
+	init_variant(term, GV_ITALIC, glyphs_italic, sizeof(glyphs_italic) / sizeof(struct variant_t));
+	init_variant(term, GV_BOLDITALIC, glyphs_bolditalic, sizeof(glyphs_bolditalic) / sizeof(struct variant_t));
 
 	if (!term->glyph[DEFAULT_CHAR]
 		|| !term->glyph[SUBSTITUTE_HALF]

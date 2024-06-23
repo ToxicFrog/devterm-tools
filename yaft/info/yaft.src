@@ -46,7 +46,7 @@ yaft-256color|yet another framebuffer terminal,
 	sgr0=\E[m,
 	sgr=\E[0%?%p6%t;1%;%?%p2%t;4%;%?%p1%p3%|%t;7%;%?%p4%t;5%;m,
 
-	bold=\E[1m, rev=\E[7m, blink=\E[5m,
+	bold=\E[1m, rev=\E[7m, blink=\E[5m, sitm=\E[3m,
 	smso=\E[7m, rmso=\E[27m,
 	smul=\E[4m, rmul=\E[24m,
 	smam=\E[?7h, rmam=\E[?7l,

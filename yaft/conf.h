@@ -27,6 +27,8 @@ enum {
 enum glyph_variant {
 	GV_NORMAL = -1,
 	GV_BOLD,
+	GV_ITALIC,
+	GV_BOLDITALIC,
 	NROF_VARIANTS,
 };
 
