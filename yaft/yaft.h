@@ -110,6 +110,7 @@ struct color_pair_t { uint8_t fg, bg; };
 
 struct cell_t {
 	const struct glyph_t *glyphp;   /* pointer to glyph */
+	int8_t variant;                 /* glyph variant index, -1 for none */
 	struct color_pair_t color_pair; /* color (fg, bg) */
 	enum char_attr attribute;       /* bold, underscore, etc... */
 	enum glyph_width width;         /* wide char flag: WIDE, NEXT_TO_WIDE, HALF */

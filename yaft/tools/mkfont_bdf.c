@@ -10,7 +10,7 @@ int actual_width(const struct glyph_t *glyph, const int code, const int cell_wid
 	if (width >= 0) return width;
 	// -1 is indeterminate/unprintable/"it's complicated"
 	// For C0 (7bit) and C1 (8bit) control codes, that's correct.
-	if (code < 0x20 || code >= 0x80 && code < 0xA0) return width;
+	if (code < 0x20 || (code >= 0x80 && code < 0xA0)) return width;
 	// For stuff outside that range, if the glyph has a defined bitmap which is
 	// an even multiple of the cell width, we assume it's something in the
 	// unicode private areas like Powerline symbols, and compute the width from
@@ -41,7 +41,7 @@ bool map_glyph(struct glyph_t *font[],
 		if (listp->code >= UCS2_CHARS)
 			continue;
 
-    // We need the handle the case where powerline & nerdfont symbols have -1
+		// We need to handle the case where powerline & nerdfont symbols have -1
 		glyph = listp->glyph;
 		width = actual_width(glyph, listp->code, cell_width);
 
@@ -116,51 +116,27 @@ bool check_font(struct glyph_t **font, struct glyph_t *empty_half, struct glyph_
 	return true;
 }
 
-bool dump_font(struct glyph_t *font[])
-{
-	int i, j, width, int_type;
-	uint8_t cell_width, cell_height;
-	const char * variant = getenv("BDF_VARIANT");
+void dump_main_font(struct glyph_t *font[], int int_type, uint8_t cell_width, uint8_t cell_height) {
+	int i, j, width;
 
-	cell_width  = font[DEFAULT_CHAR]->width;
-	cell_height = font[DEFAULT_CHAR]->height;
+	fprintf(stdout,
+		"typedef uint%d_t bitmap_row_t;\n"
+		"struct variant_t { uint32_t code; bitmap_row_t bitmap[%d]; };\n\n",
+		int_type, cell_height);
 
-	int_type = my_ceil(cell_width, BITS_PER_BYTE) /* minimum byte for containing half glyph */
-		 * 2                                      /* minimum byte for containing wide glyph */
-		 * BITS_PER_BYTE;                         /* minimum bits for containing wide glyph */
+	fprintf(stdout,
+		"struct glyph_t {\n"
+		"\tuint32_t code;\n"
+		"\tuint8_t width;\n"
+		"\tbitmap_row_t bitmap[%d];\n"
+		"\tconst bitmap_row_t *variants[%d];\n"
+		"};\n\n",
+		cell_height, NROF_VARIANTS);
 
-	/* int_type: 16, 32, 48, 64, 80... */
-	if (int_type == 48) { /* uint48_t does not exist */
-		int_type = 64;
-	} else if (int_type >= 80) {
-		logging(ERROR, "BDF width too large (uint%d_t does not exist)\n", int_type);
-		return false;
-	}
+	fprintf(stdout, "enum {\n\tCELL_WIDTH = %d,\n\tCELL_HEIGHT = %d\n};\n\n",
+		cell_width, cell_height);
 
-	if (!variant) {
-		fprintf(stdout,
-			"typedef uint%d_t bitmap_row_t;\n\n", int_type);
-
-		// TODO: figure out how to rig things so that we don't need to store so
-		// much duplicate information in the variants, and just store the bitmaps.
-		// This will require some reworking of how terminal drawing works because
-		// right now we need the fully realized glyph_t* pointing to the correct
-		// variant to pass to the drawing code.
-		fprintf(stdout,
-			"struct glyph_t {\n"
-			"\tuint32_t code;\n"
-			"\tuint8_t width;\n"
-			"\tbitmap_row_t bitmap[%d];\n"
-			"\tconst struct glyph_t *variants[%d];\n"
-			"};\n\n",
-			cell_height, NROF_VARIANTS);
-
-		fprintf(stdout, "enum {\n\tCELL_WIDTH = %d,\n\tCELL_HEIGHT = %d\n};\n\n",
-			cell_width, cell_height);
-	}
-
-	fprintf(stdout, "static struct glyph_t glyphs%s%s[] = {\n",
-		variant ? "_" : "", variant ? variant : "");
+	fprintf(stdout, "static struct glyph_t glyphs[] = {\n");
 
 	for (i = 0; i < UCS2_CHARS; i++) {
 		if (font[i] == NULL) /* glyph not found */
@@ -174,6 +150,48 @@ bool dump_font(struct glyph_t *font[])
 		fprintf(stdout, "}, {NULL,}, },\n");
 	}
 	fprintf(stdout, "};\n");
+}
+
+void dump_variant_font(struct glyph_t *font[], const char *variant, uint8_t cell_height) {
+	int i,j;
+
+	fprintf(stdout, "static struct variant_t glyphs_%s[] = {\n", variant);
+
+	for (i = 0; i < UCS2_CHARS; i++) {
+		if (font[i] == NULL) /* glyph not found */
+			continue;
+
+		fprintf(stdout, "\t{%d, {", i);
+		for (j = 0; j < cell_height; j++)
+			fprintf(stdout, "0x%X%s", (unsigned int) font[i]->bitmap[j], (j == (cell_height - 1)) ? "": ", ");
+		fprintf(stdout, "}},\n");
+	}
+	fprintf(stdout, "};\n");
+}
+
+bool dump_font(struct glyph_t *font[])
+{
+	uint8_t cell_width  = font[DEFAULT_CHAR]->width;
+	uint8_t cell_height = font[DEFAULT_CHAR]->height;
+	int int_type = my_ceil(cell_width, BITS_PER_BYTE) /* minimum byte for containing half glyph */
+		 * 2                                            /* minimum byte for containing wide glyph */
+		 * BITS_PER_BYTE;                               /* minimum bits for containing wide glyph */
+
+	/* int_type: 16, 32, 48, 64, 80... */
+	if (int_type == 48) { /* uint48_t does not exist */
+		int_type = 64;
+	} else if (int_type >= 80) {
+		logging(ERROR, "BDF width too large (uint%d_t does not exist)\n", int_type);
+		return false;
+	}
+
+	const char * variant = getenv("BDF_VARIANT");
+	if (variant) {
+		dump_variant_font(font, variant, cell_height);
+	} else {
+		dump_main_font(font, int_type, cell_width, cell_height);
+	}
+
 	return true;
 }
 

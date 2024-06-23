@@ -25,7 +25,8 @@ enum {
 
 /* number of font variants */
 enum glyph_variant {
-	GV_BOLD = 0,
+	GV_NORMAL = -1,
+	GV_BOLD,
 	NROF_VARIANTS,
 };
 

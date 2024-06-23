@@ -439,6 +439,7 @@ static inline void draw_line(struct framebuffer_t *fb, struct terminal_t *term, 
 	uint32_t pixel;
 	struct color_pair_t color_pair;
 	struct cell_t *cellp;
+	const bitmap_row_t *bitmap;
 
 	for (col = term->cols - 1; col >= 0; col--) {
 		margin_right = (term->cols - 1 - col) * CELL_WIDTH;
@@ -470,6 +471,12 @@ static inline void draw_line(struct framebuffer_t *fb, struct terminal_t *term, 
 			color_pair.bg = (!vt_active && BACKGROUND_DRAW) ? PASSIVE_CURSOR_COLOR: ACTIVE_CURSOR_COLOR;
 		}
 
+		if (cellp->variant >= 0 && cellp->glyphp->variants[cellp->variant]) {
+			bitmap = cellp->glyphp->variants[cellp->variant];
+		} else {
+			bitmap = &(cellp->glyphp->bitmap[0]);
+		}
+
 		for (h = 0; h < CELL_HEIGHT; h++) {
 			/* if UNDERLINE attribute on, swap bg/fg */
 			if ((h == (CELL_HEIGHT - 1)) && (cellp->attribute & attr_mask[ATTR_UNDERLINE]))
@@ -482,7 +489,7 @@ static inline void draw_line(struct framebuffer_t *fb, struct terminal_t *term, 
 					line * CELL_HEIGHT + h);
 
 				/* set color palette */
-				if (cellp->glyphp->bitmap[h] & (0x01 << (bdf_padding + w)))
+				if (bitmap[h] & (0x01 << (bdf_padding + w)))
 					pixel = fb->real_palette[color_pair.fg];
 				else if (fb->wall && color_pair.bg == DEFAULT_BG) /* wallpaper */
 					memcpy(&pixel, fb->wall + pos, fb->info.bytes_per_pixel);
