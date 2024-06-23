@@ -471,16 +471,27 @@ static inline void draw_line(struct framebuffer_t *fb, struct terminal_t *term, 
 			color_pair.bg = (!vt_active && BACKGROUND_DRAW) ? PASSIVE_CURSOR_COLOR: ACTIVE_CURSOR_COLOR;
 		}
 
+		bool slant = false;
 		if (cellp->variant >= 0 && cellp->glyphp->variants[cellp->variant]) {
 			bitmap = cellp->glyphp->variants[cellp->variant];
 		} else {
 			bitmap = &(cellp->glyphp->bitmap[0]);
+#ifdef AUTOSLANT
+			if (cellp->variant == GV_ITALIC || cellp->variant == GV_BOLDITALIC) {
+				slant = true;
+			}
+			if (cellp->variant == GV_BOLDITALIC && cellp->glyphp->variants[GV_BOLD]) {
+				bitmap = cellp->glyphp->variants[GV_BOLD];
+			}
+#endif
 		}
+
 
 		for (h = 0; h < CELL_HEIGHT; h++) {
 			/* if UNDERLINE attribute on, swap bg/fg */
 			if ((h == (CELL_HEIGHT - 1)) && (cellp->attribute & attr_mask[ATTR_UNDERLINE]))
 				color_pair.bg = color_pair.fg;
+			int offset = slant ? (3*(h-AUTOSLANT_OFFSET)/AUTOSLANT)-1 : 0;
 
 			for (w = 0; w < CELL_WIDTH; w++) {
 				pos = get_px_offset(
@@ -489,7 +500,7 @@ static inline void draw_line(struct framebuffer_t *fb, struct terminal_t *term, 
 					line * CELL_HEIGHT + h);
 
 				/* set color palette */
-				if (bitmap[h] & (0x01 << (bdf_padding + w)))
+				if (bitmap[h] & (0x01 << (bdf_padding + w - offset)))
 					pixel = fb->real_palette[color_pair.fg];
 				else if (fb->wall && color_pair.bg == DEFAULT_BG) /* wallpaper */
 					memcpy(&pixel, fb->wall + pos, fb->info.bytes_per_pixel);

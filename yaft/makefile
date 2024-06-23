@@ -43,10 +43,10 @@ glyph_bold.h: mkfont_bdf
 	BDF_VARIANT=bold ./mkfont_bdf table/alias fonts/Tamzen10x20b.bdf fonts/Powerline10x20.bdf > glyph_bold.h
 
 glyph_italic.h: mkfont_bdf
-	BDF_VARIANT=italic ./mkfont_bdf table/alias fonts/dylex_10x20O.bdf > glyph_italic.h
+	BDF_VARIANT=italic ./mkfont_bdf table/alias fonts/empty.bdf fonts/Powerline10x20.bdf > glyph_italic.h
 
 glyph_bolditalic.h: mkfont_bdf
-	BDF_VARIANT=bolditalic ./mkfont_bdf table/alias fonts/dylex_10x20BO.bdf > glyph_bolditalic.h
+	BDF_VARIANT=bolditalic ./mkfont_bdf table/alias fonts/empty.bdf fonts/Powerline10x20.bdf > glyph_bolditalic.h
 
 yaft: yaft.c $(HDR)
 	# If you want to change configuration, please modify conf.h before make (see conf.h for more detail)

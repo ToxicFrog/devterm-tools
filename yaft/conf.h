@@ -32,6 +32,19 @@ enum glyph_variant {
 	NROF_VARIANTS,
 };
 
+// If no italic font is loaded, try to slant italic characters on the fly by
+// shifting the bottom third of each character to the left and the top third
+// to the right.
+// Commenting this out completely disables autoslanting.
+// This will never be as good as using a proper oblique font face, but those
+// are often hard to find for bitmapped fonts.
+// Value of autoslant is how large a vertical window to use; this should
+// usually be smaller than the cell height for good results, about one el high.
+#define AUTOSLANT 14
+// Vertical offset for autoslanting. Should be set about the same as the font's
+// baseline or a bit lower.
+#define AUTOSLANT_OFFSET 3
+
 /* TERM value */
 const char *term_name = "yaft-256color";
 
