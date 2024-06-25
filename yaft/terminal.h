@@ -1,3 +1,5 @@
+#include <time.h>
+
 /* See LICENSE for licence details. */
 void erase_cell(struct terminal_t *term, int y, int x)
 {
@@ -359,6 +361,48 @@ void init_variant(struct terminal_t *term, int variant, struct variant_t glyphs[
 	}
 }
 
+void benchmark_blits(struct terminal_t *term, struct framebuffer_t *fb) {
+	// Dirty the page; otherwise we get very unrealistic results that don't
+	// reflect real-world performance.
+	memset(fb->buf, 0x00, fb->info.screen_size);
+	// First copy is perplexingly slow so get it out of the way before doing
+	// real performance testing.
+	memcpy(fb->fp, fb->buf, fb->info.screen_size);
+
+	clock_t fullscreen_time = clock();
+	for (int i = 0; i < 16; ++i) {
+		blit_whole_fb(fb);
+	}
+	fullscreen_time = (clock() - fullscreen_time)/16;
+
+	if (!is_rotated_90(fb)) {
+		clock_t line_time = clock();
+		for (int i = 0; i < 16; ++i) {
+			for (int line = 0; line < term->lines; ++line) {
+				blit_line(fb, line);
+			}
+		}
+		line_time = (clock() - line_time)/16;
+		term->dirty_threshold = term->lines * fullscreen_time / line_time;
+		logging(DEBUG, "Benchmarks: full=%d line=%d ratio: %d/%d lines\n",
+			fullscreen_time, line_time, term->dirty_threshold, term->lines);
+		return;
+	}
+
+	clock_t cell_time = clock();
+	for (int i = 0; i < 16; ++i) {
+		for (int line = 0; line < term->lines; ++line) {
+			for (int col = 0; col < term->cols; ++col) {
+				blit_cell_rotated(fb, line, col);
+			}
+		}
+	}
+	cell_time = (clock() - cell_time)/16;
+	term->dirty_threshold = term->lines * fullscreen_time / cell_time;
+	logging(DEBUG, "Benchmarks: full=%d cell=%d ratio: %d/%d lines\n",
+		fullscreen_time, cell_time, term->dirty_threshold, term->lines);
+}
+
 bool term_init(struct terminal_t *term, struct framebuffer_t *fb)
 {
 	extern const uint32_t color_list[COLORS]; /* global */
@@ -420,6 +464,11 @@ bool term_init(struct terminal_t *term, struct framebuffer_t *fb)
 			SUBSTITUTE_WIDE, term->glyph[SUBSTITUTE_WIDE]);
 		return false;
 	}
+
+	// Test how fast different drawing operations are on this platform, and
+	// figure out whether there's a point where it's cheaper to redraw the
+	// whole screen even if only part of it has been dirtied.
+	benchmark_blits(term, fb);
 
 	/* reset terminal */
 	reset(term);

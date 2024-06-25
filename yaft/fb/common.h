@@ -431,10 +431,55 @@ inline size_t get_px_offset(struct framebuffer_t *fb, int x, int y) {
 	}
 }
 
+void blit_line(struct framebuffer_t *fb, int line) {
+	int size = CELL_HEIGHT * fb->info.line_length;
+	int pos;
+
+	if (fb->rotate == ROTATE_UPSIDE_DOWN) {
+		pos = get_px_offset(fb, 0, (line+1) * CELL_HEIGHT - 1);
+	} else {
+		pos = get_px_offset(fb, 0, line * CELL_HEIGHT);
+	}
+
+	memcpy(fb->fp + pos, fb->buf + pos, size);
+}
+
+void blit_cell_rotated(struct framebuffer_t *fb, int line, int col) {
+	int size = CELL_HEIGHT * fb->info.bytes_per_pixel;
+	int pos, w;
+
+	for (w = 0; w < CELL_WIDTH; w++) {
+		if (fb->rotate == ROTATE_CLOCKWISE) {
+			// Clockwise rotation means we need to ask for points along the bottom
+			// edge of the character cell, in order to make sure they are located
+			// at the start of slice in the real framebuffer.
+			pos = get_px_offset(fb,
+				(col + 1) * CELL_WIDTH - 1 - w,
+				(line + 1) * CELL_HEIGHT - 1);
+		} else {
+			pos = get_px_offset(fb,
+				(col + 1) * CELL_WIDTH - 1 - w,
+				line * CELL_HEIGHT);
+		}
+		memcpy(fb->fp + pos, fb->buf + pos, size);
+	}
+}
+
+void blit_whole_fb(struct framebuffer_t *fb) {
+	uint8_t *from = fb->buf;
+	uint8_t *to = fb->fp;
+	size_t size = fb->info.width * fb->info.bytes_per_pixel;
+	for (int y = 0; y < fb->info.height; ++y) {
+		memcpy(to, from, size);
+		from += fb->info.line_length;
+		to += fb->info.line_length;
+	}
+}
+
 // Draw a row of cells to the screen.
-static inline void draw_line(struct framebuffer_t *fb, struct terminal_t *term, int line)
+static inline void draw_line(struct framebuffer_t *fb, struct terminal_t *term, int line, bool blit)
 {
-	int pos, size, bdf_padding, glyph_width, margin_right;
+	int pos, bdf_padding, glyph_width, margin_right;
 	int col, w, h;
 	uint32_t pixel;
 	struct color_pair_t color_pair;
@@ -486,7 +531,6 @@ static inline void draw_line(struct framebuffer_t *fb, struct terminal_t *term, 
 #endif
 		}
 
-
 		for (h = 0; h < CELL_HEIGHT; h++) {
 			/* if UNDERLINE attribute on, swap bg/fg */
 			if ((h == (CELL_HEIGHT - 1)) && (cellp->attribute & attr_mask[ATTR_UNDERLINE]))
@@ -515,35 +559,14 @@ static inline void draw_line(struct framebuffer_t *fb, struct terminal_t *term, 
 		/* actual display update */
 		// If we're rotated, each vertical slice of the character cell is a horizontal
 		// slice of the framebuffer, so draw it out one slice at a time.
-		if (is_rotated_90(fb)) {
-			size = CELL_HEIGHT * fb->info.bytes_per_pixel;
-			for (w = 0; w < CELL_WIDTH; w++) {
-				if (fb->rotate == ROTATE_CLOCKWISE) {
-					// Clockwise rotation means we need to ask for points along the bottom
-					// edge of the character cell, in order to make sure they are located
-					// at the start of slice in the real framebuffer.
-					pos = get_px_offset(fb,
-						term->width - 1 - margin_right - w,
-						(line + 1) * CELL_HEIGHT - 1);
-				} else {
-					pos = get_px_offset(fb,
-						term->width - 1 - margin_right - w,
-						line * CELL_HEIGHT);
-				}
-				memcpy(fb->fp + pos, fb->buf + pos, size);
-			}
+		if (blit && is_rotated_90(fb)) {
+			blit_cell_rotated(fb, line, col);
 		}
 	}
 
 	// We can just blit the entire line in one go.
-	if (!is_rotated_90(fb)) {
-		size = CELL_HEIGHT * fb->info.line_length;
-		if (fb->rotate == ROTATE_UPSIDE_DOWN) {
-			pos = get_px_offset(fb, 0, (line+1) * CELL_HEIGHT - 1);
-		} else {
-			pos = get_px_offset(fb, 0, line * CELL_HEIGHT);
-		}
-		memcpy(fb->fp + pos, fb->buf + pos, size);
+	if (blit && !is_rotated_90(fb)) {
+		blit_line(fb, line);
 	}
 
 	/* TODO: page flip
@@ -567,10 +590,24 @@ void refresh(struct framebuffer_t *fb, struct terminal_t *term)
 	if (term->mode & MODE_CURSOR)
 		term->line_dirty[term->cursor.y] = true;
 
+	// Figure out how many lines are dirty -- especially if we are operating in
+	// rotated mode it will often be faster to render a bunch of lines at once
+	// and then blit the whole screen than to blit each line (or cell, in rotated
+	// mode) as we update it.
+	int dirty_lines = 0;
+	for (int line = 0; line < term->lines; line++) {
+		if (term->line_dirty[line]) ++dirty_lines;
+	}
+	bool defer_redraw = dirty_lines >= term->dirty_threshold;
+
 	for (int line = 0; line < term->lines; line++) {
 		if (term->line_dirty[line]) {
-			draw_line(fb, term, line);
+			draw_line(fb, term, line, !defer_redraw);
 		}
+	}
+
+	if (defer_redraw) {
+		blit_whole_fb(fb);
 	}
 
 	struct fb_var_screeninfo vinfo;

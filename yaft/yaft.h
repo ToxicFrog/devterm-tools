@@ -159,6 +159,7 @@ struct terminal_t {
 	struct margin_t scroll;                  /* scroll margin */
 	struct point_t cursor;                   /* cursor pos (x, y) */
 	bool *line_dirty;                        /* dirty flag */
+	uint16_t dirty_threshold;                /* how many dirty lines before we just blit the whole screen in rotated mode */
 	bool *tabstop;                           /* tabstop flag */
 	enum term_mode mode;                     /* for set/reset mode */
 	bool wrap_occurred;                      /* whether auto wrap occurred or not */
