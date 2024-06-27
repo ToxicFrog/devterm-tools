@@ -37,7 +37,7 @@ glyph.h: mkfont_bdf
 	# ALIAS: glyph substitution rule file (see table/alias for more detail)
 	# BDF1 BDF2 BDF3...: monospace bdf files (must be the same size)
 	# If there is more than one glyph of the same codepoint, the glyph included in the first bdf file is choosen.
-	./mkfont_bdf table/alias fonts/Tamzen10x20r.bdf fonts/Powerline10x20.bdf fonts/dylex_10x20.bdf > glyph.h
+	./mkfont_bdf table/alias fonts/Tamzen10x20r.bdf fonts/Powerline10x20.bdf fonts/nfmono10x20.bdf fonts/dylex_10x20.bdf > glyph.h
 
 glyph_bold.h: mkfont_bdf
 	BDF_VARIANT=bold ./mkfont_bdf table/alias fonts/Tamzen10x20b.bdf fonts/Powerline10x20.bdf > glyph_bold.h
