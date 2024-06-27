@@ -16,6 +16,8 @@ export HISTFILE="$ZDOTDIR/.zhistory"
 export HISTSIZE=$((1024*1024))
 export SAVEHIST=$((1024*1024))
 
+export LS_COLORS="$(vivid -m 8-bit generate dracula)"
+
 typeset -A key
 key[Home]="$terminfo[khome]"
 key[End]="$terminfo[kend]"

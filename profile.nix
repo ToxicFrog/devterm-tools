@@ -46,10 +46,12 @@ in pkgs.symlinkJoin {
     rlwrap
     stdmanpages
     termsonic
+    vivid
     w3m
     yaft yaft.terminfo
     zsh
     zsh.man
+    zsh-autopair zsh-autosuggestions zsh-completions zsh-f-sy-h zsh-z
   ] ++ scripts;
 }
     # Unfortunately builds taskchampion alongside task, which depends on Ring,

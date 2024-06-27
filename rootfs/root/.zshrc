@@ -1,12 +1,25 @@
+echo
+
+# tty-specific setup
+if [[ -t 0 ]]; then
+  printf '\x1B)0'  # enable DEC G1 line drawing
+  nixflake --random
+
+  # zsh-z has to go before compinit
+  source ~/.nix-profile/share/zsh-z/zsh-z.plugin.zsh
+
+  fpath=(~/.nix-profile/share/zsh/site-functions $fpath)
+  autoload -Uz compinit
+  compinit
+
+  # autopair has to go after compinit
+  source ~/.nix-profile/share/zsh/zsh-autopair/autopair.zsh
+  source ~/.nix-profile/share/zsh-autosuggestions/zsh-autosuggestions.zsh
+  source ~/.nix-profile/share/zsh/site-functions/F-Sy-H.plugin.zsh
+fi
 
 # Convenience function to reload the rc
 alias rcreload="source \"$ZDOTDIR/.zshenv\" && source \"$ZDOTDIR/.zshrc\""
-
-# Enable G1 line drawing character set if stdin isatty
-if [[ -t 0 ]]; then
-  printf '\x1B)0'
-  nixflake --random
-fi
 
 # Make run-help/alt-H look in builtin help before man pages
 unalias run-help 2>/dev/null
@@ -14,7 +27,7 @@ autoload run-help
 
 alias help=run-help
 alias cm=chezmoi
-alias ls='eza --icons=never --group-directories-first --color=auto'
+alias ls='eza --icons=auto --group-directories-first --color=auto'
 alias ll='ls -lAmb'
 alias la='ls -A'
 alias lr='ls -lAmbr -s modifier'
@@ -23,6 +36,16 @@ alias grep='grep --color=auto'
 alias fgrep='grep -F'
 alias egrep='grep -E'
 alias rsync='rsync -Ph -ASHAX'
+
+alias edit=micro
+
+alias 11='chvt 1'
+alias bb='cat /sys/class/power_supply/axp20x-battery/uevent'
+alias ee='edit'
+alias ff='nixflake --random'
+alias hh='shutdown -h now'
+alias rr='reset'
+alias ss='ssh -t bex@ancilla.ancilla.ca tmux -2u a'
 
 # Man disambiguator when the same page exists in multiple sections.
 function man {
