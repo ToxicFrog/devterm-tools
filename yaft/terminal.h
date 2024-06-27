@@ -197,20 +197,14 @@ const struct glyph_t *drcs_glyph(struct terminal_t *term, uint32_t code)
 }
 
 const struct glyph_t *find_glyph(struct terminal_t *term, uint32_t code) {
-	const int width = wcwidth(code);
-
-	// TODO: support for NF plane here? Glyphs in the NF range need to use
-	// a different variant. Or we need to expand past UCS2.
-	if (width <= 0)                                /* zero width: not support combining characters */
-		return NULL;
-	else if (0x100000 <= code && code <= 0x10FFFD) /* unicode private area: plane 16 (DRCSMMv1) */
+	if (0x100000 <= code && code <= 0x10FFFD) /* unicode private area: plane 16 (DRCSMMv1) */
 		return drcs_glyph(term, code);
-	else if (code >= UCS2_CHARS                    /* yaft support only UCS2 */
-		|| term->glyph[code] == NULL           /* missing glyph */
-		|| term->glyph[code]->width != width)  /* width unmatched */
-		return (width == 1) ? term->glyph[SUBSTITUTE_HALF]: term->glyph[SUBSTITUTE_WIDE];
-	else
-		return term->glyph[code];
+
+	/* codepoint outside supported range or no glyph for this codepoint */
+	if (code >= UCS2_CHARS || term->glyph[code] == NULL)
+		return (wcwidth(code) == 2) ? term->glyph[SUBSTITUTE_WIDE]: term->glyph[SUBSTITUTE_HALF];
+
+	return term->glyph[code];
 }
 
 void addch(struct terminal_t *term, uint32_t code)
