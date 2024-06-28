@@ -40,11 +40,19 @@ in pkgs.symlinkJoin {
     chezmoi
     eza
     figlet toilet
+    frotz
+    git gitui
     input-utils
     micro
+    # dies with illegal instruction
+    # (musikcube.override {
+    #   ffmpeg = ffmpeg.override { ffmpegVariant = "headless"; };
+    #   pipewireSupport = false;
+    # })
     nb
     rlwrap
     stdmanpages
+    #taizen  # cross-compilation is broken, tries to build target binaries for host build steps
     termsonic
     vivid
     w3m
@@ -76,3 +84,6 @@ in pkgs.symlinkJoin {
     # needs gnutls: taskwarrior
 
     # pick one of: vit taskwarrior-tui
+    # infra-arcana # graphical only
+    # if we want sdl in the framebuffer, we need to build libsdl2 with
+    # --enable-kmsdrm configure flag
