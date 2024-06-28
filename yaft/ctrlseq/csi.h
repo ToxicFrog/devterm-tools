@@ -385,9 +385,9 @@ void set_attr(struct terminal_t *term, struct parm_t *parm)
 			term->attribute = ATTR_RESET;
 			term->color_pair.fg = DEFAULT_FG;
 			term->color_pair.bg = DEFAULT_BG;
-		} else if (1 <= num && num <= 7) {     /* set attribute */
+		} else if (1 <= num && num <= 9) {     /* set attribute */
 			term->attribute |= attr_mask[num];
-		} else if (21 <= num && num <= 27) {   /* reset attribute */
+		} else if (21 <= num && num <= 29) {   /* reset attribute */
 			term->attribute &= ~attr_mask[num - 20];
 		} else if (30 <= num && num <= 37) {   /* set foreground */
 			term->color_pair.fg = (num - 30);

@@ -49,6 +49,7 @@ yaft-256color|yet another framebuffer terminal,
 	bold=\E[1m, rev=\E[7m, blink=\E[5m, sitm=\E[3m,
 	smso=\E[7m, rmso=\E[27m,
 	smul=\E[4m, rmul=\E[24m,
+	smxx=\E[9m, rmxx=\E[29m,
 	smam=\E[?7h, rmam=\E[?7l,
 
 # Function keys

@@ -62,11 +62,13 @@ enum char_attr {
 	ATTR_UNDERLINE = 4,
 	ATTR_BLINK     = 5, /* brighten background */
 	ATTR_REVERSE   = 7,
+	ATTR_STRIKE    = 9,
 };
 
 const uint8_t attr_mask[] = {
-	0x00, 0x01, 0x00, 0x02, /* 0:none      1:bold  2:none 3:italic */
-	0x04, 0x08, 0x00, 0x10, /* 4:underline 5:blink 6:none 7:reverse */
+	0x00, 0x01, 0x00, 0x02, /* 0:none      1:bold    2:none  3:italic */
+	0x04, 0x08, 0x00, 0x10, /* 4:underline 5:blink   6:none  7:reverse */
+	0x00, 0x20, 0x00, 0x00, /* 8:none      9:strike 10:none 11:none :*/
 };
 
 const uint32_t bit_mask[] = {

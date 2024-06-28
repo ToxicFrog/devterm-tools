@@ -532,9 +532,13 @@ static inline void draw_line(struct framebuffer_t *fb, struct terminal_t *term, 
 		}
 
 		for (h = 0; h < CELL_HEIGHT; h++) {
-			/* if UNDERLINE attribute on, swap bg/fg */
+		  int bg = color_pair.bg;
+			/* if UNDERLINE attribute on, swap bg/fg on bottom row */
 			if ((h == (CELL_HEIGHT - 1)) && (cellp->attribute & attr_mask[ATTR_UNDERLINE]))
-				color_pair.bg = color_pair.fg;
+				bg = color_pair.fg;
+			if ((h == CELL_HEIGHT/2) && (cellp->attribute & attr_mask[ATTR_STRIKE]))
+				bg = color_pair.fg;
+
 			int offset = slant ? (3*(h-AUTOSLANT_OFFSET)/AUTOSLANT)-1 : 0;
 
 			for (w = 0; w < CELL_WIDTH; w++) {
@@ -546,10 +550,10 @@ static inline void draw_line(struct framebuffer_t *fb, struct terminal_t *term, 
 				/* set color palette */
 				if (bitmap[h] & (0x01 << (bdf_padding + w - offset)))
 					pixel = fb->real_palette[color_pair.fg];
-				else if (fb->wall && color_pair.bg == DEFAULT_BG) /* wallpaper */
+				else if (fb->wall && bg == DEFAULT_BG) /* wallpaper */
 					memcpy(&pixel, fb->wall + pos, fb->info.bytes_per_pixel);
 				else
-					pixel = fb->real_palette[color_pair.bg];
+					pixel = fb->real_palette[bg];
 
 				/* update copy buffer only */
 				memcpy(fb->buf + pos, &pixel, fb->info.bytes_per_pixel);
