@@ -129,3 +129,9 @@ opts=(
 )
 setopt ${=opts[@]}
 unset opts histopts
+
+
+# Disable A'Tuin keybinding and then bind ^R only, not uparrow
+export ATUIN_NOBIND=true
+eval "$(atuin init zsh)"
+bindkey '^r' _atuin_search_widget
