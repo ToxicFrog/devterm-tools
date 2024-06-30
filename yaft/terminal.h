@@ -203,7 +203,7 @@ const struct glyph_t *find_glyph(struct terminal_t *term, uint32_t code) {
 
 void addch(struct terminal_t *term, uint32_t code)
 {
-	logging(DEBUG, "addch: U+%.4X\n", code);
+	logging(DEBUG, "addch: U+%.4X : %lc\n", code, (wint_t)code);
 
 	const struct glyph_t *glyphp = find_glyph(term, code);
 	if (!glyphp) return;
@@ -329,16 +329,25 @@ void redraw(struct terminal_t *term)
 		term->line_dirty[i] = true;
 }
 
+void alloc_cells(struct terminal_t *term) {
+	term->cells = (struct cell_t **) ecalloc(term->lines, sizeof(struct cell_t *));
+	for (int i = 0; i < term->lines; i++)
+		term->cells[i] = (struct cell_t *) ecalloc(term->cols, sizeof(struct cell_t));
+}
+
+void free_cells(struct terminal_t *term) {
+	for (int i = 0; i < term->lines; i++)
+		free(term->cells[i]);
+	free(term->cells);
+}
+
 void term_die(struct terminal_t *term)
 {
 	free(term->line_dirty);
 	free(term->tabstop);
 	free(term->esc.buf);
 	free(term->sixel.pixmap);
-
-	for (int i = 0; i < term->lines; i++)
-		free(term->cells[i]);
-	free(term->cells);
+	free_cells(term);
 }
 
 void init_variant(struct terminal_t *term, int variant, struct variant_t glyphs[], size_t size) {
@@ -416,9 +425,7 @@ bool term_init(struct terminal_t *term, struct framebuffer_t *fb)
 	term->esc.buf      = (char *) ecalloc(1, term->esc.size);
 	term->sixel.pixmap = (uint8_t *) ecalloc(term->width * term->height, BYTES_PER_PIXEL);
 
-	term->cells        = (struct cell_t **) ecalloc(term->lines, sizeof(struct cell_t *));
-	for (int i = 0; i < term->lines; i++)
-		term->cells[i] = (struct cell_t *) ecalloc(term->cols, sizeof(struct cell_t));
+	alloc_cells(term);
 
 	if (!term->line_dirty || !term->tabstop || !term->cells
 		|| !term->esc.buf || !term->sixel.pixmap) {

@@ -434,6 +434,31 @@ void device_attribute(struct terminal_t *term, struct parm_t *parm)
 	ewrite(term->fd, "\033[?6c", 5); /* "I am a VT102" */
 }
 
+void decset_altbuf(struct terminal_t *term) {
+	// No-op if already in alternate buffer mode.
+	if (term->mode & MODE_ALTBUF) return;
+
+	term->saved_cells = term->cells;
+	term->saved_cursor.x = term->cursor.x;
+	term->saved_cursor.y = term->cursor.y;
+	alloc_cells(term);
+	// set_cursor(term, 0, 0);
+	reset(term);
+	term->mode |= MODE_ALTBUF;
+}
+
+void decrst_altbuf(struct terminal_t *term) {
+	// No-op if not in alternate buffer mode.
+	if (!(term->mode & MODE_ALTBUF)) return;
+
+	free_cells(term);
+	term->cells = term->saved_cells;
+	term->saved_cells = NULL;
+	term->mode &= ~MODE_ALTBUF;
+	set_cursor(term, term->saved_cursor.y, term->saved_cursor.x);
+	redraw(term);
+}
+
 void set_mode(struct terminal_t *term, struct parm_t *parm)
 {
 	int i, mode;
@@ -450,11 +475,12 @@ void set_mode(struct terminal_t *term, struct parm_t *parm)
 			term->mode |= MODE_AMRIGHT;
 		} else if (mode == 25) {
 			term->mode |= MODE_CURSOR;
+		} else if (mode == 1049) {
+			decset_altbuf(term);
 		} else if (mode == 8901) {
 			term->mode |= MODE_VWBS;
 		}
 	}
-
 }
 
 void reset_mode(struct terminal_t *term, struct parm_t *parm)
@@ -474,11 +500,12 @@ void reset_mode(struct terminal_t *term, struct parm_t *parm)
 			term->wrap_occurred = false;
 		} else if (mode == 25) {
 			term->mode &= ~MODE_CURSOR;
+		} else if (mode == 1049) {
+			decrst_altbuf(term);
 		} else if (mode == 8901) {
 			term->mode &= ~MODE_VWBS;
 		}
 	}
-
 }
 
 void set_margin(struct terminal_t *term, struct parm_t *parm)

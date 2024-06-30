@@ -7,7 +7,7 @@ yaft-256color|yet another framebuffer terminal,
 
 	nel=\EE, cr=^M,
 
-	smcup=\r,rmcup=\r,
+	smcup=\E[?1049h,rmcup=\E[?1049l,
 
 	cuf=\E[%p1%dC, cuf1=\E[C,
 	cub=\E[%p1%dD, cub1=^H,

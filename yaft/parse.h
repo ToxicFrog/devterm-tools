@@ -97,7 +97,7 @@ void csi_sequence(struct terminal_t *term, uint8_t ch)
 
 	*(term->esc.bp - 1) = '\0'; /* omit final character */
 
-	logging(DEBUG, "csi: CSI %s\n", term->esc.buf + 1);
+	logging(DEBUG, "csi: CSI %s %c\n", term->esc.buf + 1, ch);
 
 	reset_parm(&parm);
 	parse_arg(term->esc.buf + 1, &parm, ';', isdigit); /* skip '[' */

@@ -93,6 +93,7 @@ enum term_mode {
 	MODE_CURSOR  = 0x02, /* cursor visible: DECTCEM */
 	MODE_AMRIGHT = 0x04, /* auto wrap: DECAWM */
 	MODE_VWBS    = 0x08, /* variable-width backspace */
+	MODE_ALTBUF  = 0x10, /* alternate screen buffer (smcup/rmcup) */
 };
 
 enum esc_state {
@@ -174,6 +175,9 @@ struct terminal_t {
 	const struct glyph_t *glyph[UCS2_CHARS]; /* array of pointer to glyphs[] */
 	struct glyph_t drcs[DRCS_CHARS];         /* DRCS chars */
 	struct sixel_canvas_t sixel;
+	/* fields for DECSET 1049 */
+	struct cell_t **saved_cells;
+	struct point_t saved_cursor;
 };
 
 struct parm_t { /* for parse_arg() */
