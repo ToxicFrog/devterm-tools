@@ -1,96 +1,39 @@
-# yaft (yet another framebuffer terminal)
+# yaft (R01 fork)
 
-| Branch | Badge |
-| :--: | :--: |
-| master | [![CircleCI](https://circleci.com/gh/uobikiemukot/yaft.svg?style=svg)](https://circleci.com/gh/uobikiemukot/yaft) |
-| develop | [![CircleCI](https://circleci.com/gh/uobikiemukot/yaft/tree/develop.svg?style=svg)](https://circleci.com/gh/uobikiemukot/yaft/tree/develop) |
+This is a fork of [yaft](https://github.com/uobikiemukot/yaft) with some changes to make it usable on the [CPI DevTerm](https://www.clockworkpi.com/home-devterm) with the R01 RISC-V core.
 
-Last update: Wed Mar 14 18:44:27 JST 2018
+## Rationale
 
-## description
+Even simple graphical environments are visibly sluggish on the R01. They're useful for some things, but most of the tools I use daily work in the terminal anyways, so why not abandon X11 for day to day use entirely?
 
-Yet Another Framebuffer Terminal (aka "yaft") is simple terminal emulator for minimalist.
+The linux `fbcon` driver is fairly barebones, so I wanted a framebuffer terminal emulator to replace it with; `yaft` struck a sweet spot between low system requirements, doing most of what I need, and being easy to modify to support the rest.
 
-Features:
+## Differences from Upstream
 
-+	various framebuffer types (8/15/16/24/32bpp)
-+	compatible with vt102 and Linux console ([detail](http://uobikiemukot.github.io/yaft/escape.html))
-+	UTF-8 encoding and UCS2 glyphs
-+	256 colors (same as xterm)
-+	wallpaper
-+	DRCS (DECDLD/DRCSMMv1) (experimental)
-+	sixel (experimental)
+This fork is based on [yaft master](https://github.com/uobikiemukot/yaft/commits/master/) with the [hackerb9 patch series](https://github.com/uobikiemukot/yaft/compare/master...hackerb9:yaft:master) applied. In addition, it has the following changes:
 
-There are Several ports:
+### New Features
 
--	yaft for framebuffer console
-	-	Linux console
-	-	FreeBSD console
-	-	NetBSD/OpenBSD wscons (experimental)
--	yaftx for X Window System
--	[yaft-android](https://github.com/uobikiemukot/yaft-android) for Android
+- Bold text (`SGR 1`) will use a separate boldface font, rather than just lightening the foreground colour.
+- Italic text (`SGR 3`) will use a separate italic (or bolditalic) font, if one is loaded; otherwise it will fake it by slanting the glyphs of the regular or bold font.
+- Strikethrough text (`SGR 9`) is supported.
+- Use of `ctrl`, `alt`, and `shift` in conjunction with the arrow keys, `pgup`, `pgdn`, `home`, `end`, `ins`, and `del` is now supported, and sends the same escape sequences as xterm.
+- Glyphs in the Unicode private use area (e.g. Nerd Font) are now usable, as long as they are still within UCS2. A glyph width of 1 cell is assumed.
+- Support for a wider range of programs using RGB colour:
+	- ITU (`:`-separated) direct colour mode commands are supported.
+	- The colourspace ID is optional, but permitted, in both ITU and legacy xterm modes.
 
-## download
+### Configuration Changes
 
--	[yaft-0.2.9.tar.gz](https://github.com/uobikiemukot/yaft/archive/v0.2.9.tar.gz)
+- The default font is now [Tamzen 10x20](https://github.com/sunaku/tamzen-font), which gives a 128x24 terminal size on the DevTerm.
+	- Both regular and bold versions are included.
+	- Nerd Font symbols, rescaled to fit in 10x20, are supported (except for the Material Design icons).
+	- Dylex 10x20 is used as a fallback for symbols missing from Tamzen.
+- The default cursor is now amber.
 
-## configuration
+### Fixes & Optimizations
 
-If you want to change configuration, rewrite "conf.h".
-
-## environment variables
-
--	FRAMEBUFFER=/dev/fb0: specify farmebuffer device
--	YAFT="wall": use current background as wallpaper (need [idump](https://github.com/uobikiemukot/idump) or fbv)
-
-~~~
-$ idump /path/to/wallpaper.png; tput civis; YAFT="wall" FRAMEBUFFER="/dev/fb1" yaft
-~~~
-
-## how to use your favorite fonts
-
-You can use tools/mkfont_bdf to create "glyph.h".
-
-usage: tools/mkfont_bdf ALIAS_FILE BDF1 BDF2 BDF3 ... > glyph.h
-
--	ALIAS_FILE: glyph substitution rule file (see table/alias)
--	BDF1, BDF2, BDF3...: bdf files
-	+	yaft supports only "monospace" bdf font
-	+	you can specify mulitiple bdf fonts (but these fonts MUST be the same size)
-		+	If there is more than one glyph of the same codepoint, the glyph included in the FIRST bdf file is choosed
-
-~~~
-$ ./mkfont_bdf table/your_alias your/favorite/fonts.bdf > glyph.h
-~~~
-
-Or try glyph_builder.sh (bash script for creating yaft's glyph.h)
-
--	supported fonts: mplus, efont, milkjf, unifont, dina, terminus, profont, tamsyn
-
-## build and install
-
-BSD users should check README.bsd
-
-~~~
-$ export LANG=en_US.UTF-8 # yaft uses libc's wcwidth for calculating glyph width
-$ make
-# make install
-or
-$ make yaftx
-# make installx
-~~~
-
-## screenshot
-
-![screenshot1](http://uobikiemukot.github.io/img/yaft-screenshot.png)
-
-## license
-The MIT License (MIT)
-
-Copyright (c) 2012 haru (uobikiemukot at gmail dot com)
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+- Makefile now supports cross-compilation in Nix.
+- On startup, it will benchmark different drawing modes (per-cell, per-line, per-screen); when refreshing, it will choose the most performant based on how much of the screen it needs to redraw.
+	- This is mostly irrelevant in normal mode, but in rotated mode improves drawing performance 2-2.5×.
+- `DECSET 1049` (alternate screen buffer) now properly saves/restores the old screen contents, clears the screen, and homes the cursor. This fixes some fullscreen programs like `atuin`.
