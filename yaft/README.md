@@ -2,6 +2,8 @@
 
 This is a fork of [yaft](https://github.com/uobikiemukot/yaft) with some changes to make it usable on the [CPI DevTerm](https://www.clockworkpi.com/home-devterm) with the R01 RISC-V core.
 
+You can find a statically-linked binary which should run out of the box on the R01 [here](../rootfs/bin/yaft). You will need to run it in rotated mode: `env YAFT=clockwise yaft`.
+
 ## Rationale
 
 Even simple graphical environments are visibly sluggish on the R01. They're useful for some things, but most of the tools I use daily work in the terminal anyways, so why not abandon X11 for day to day use entirely?
