@@ -38,6 +38,7 @@ in pkgs.symlinkJoin {
     atuin
     btop
     chezmoi
+    elinks
     eza
     figlet toilet
     frotz
@@ -55,7 +56,6 @@ in pkgs.symlinkJoin {
     #taizen  # cross-compilation is broken, tries to build target binaries for host build steps
     termsonic
     vivid
-    w3m
     yaft yaft.terminfo
     zsh
     zsh.man
