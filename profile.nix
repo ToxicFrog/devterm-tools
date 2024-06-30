@@ -13,7 +13,7 @@ let
 
   micro = pkgs.micro.overrideAttrs (_: { postFixup = ""; });
 
-  yaft = pkgs.yaft.overrideAttrs (old: with pkgs; {
+  yaft = pkgs.pkgsStatic.yaft.overrideAttrs (old: with pkgs; {
     depsBuildBuild = [ buildPackages.stdenv.cc ];
     nativeBuildInputs = [ buildPackages.ncurses ];
     src = ./yaft;
