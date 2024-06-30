@@ -4,6 +4,10 @@ This is a fork of [yaft](https://github.com/uobikiemukot/yaft) with some changes
 
 You can find a statically-linked binary which should run out of the box on the R01 [here](../rootfs/bin/yaft). You will need to run it in rotated mode: `env YAFT=clockwise yaft`.
 
+**Before/After** (kernel `fbcon` vs. `yaft`):
+
+<img src="img/devterm-before.jpeg" width="40%"><img src="img/devterm-after.jpeg" width="40%">
+
 ## Rationale
 
 Even simple graphical environments are visibly sluggish on the R01. They're useful for some things, but most of the tools I use daily work in the terminal anyways, so why not abandon X11 for day to day use entirely?
