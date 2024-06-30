@@ -42,12 +42,6 @@ int set_cell(struct terminal_t *term, int y, int x, const struct glyph_t *glyphp
 	uint8_t color_tmp;
 
 	cell.glyphp = glyphp;
-	cell.variant = GV_NORMAL;
-
-	if (term->attribute & attr_mask[ATTR_BOLD])
-		cell.variant = GV_BOLD;
-	if (term->attribute & attr_mask[ATTR_ITALIC])
-		cell.variant = (cell.variant == GV_NORMAL) ? GV_ITALIC : GV_BOLDITALIC;
 
 	cell.color_pair.fg = term->color_pair.fg;
 	cell.color_pair.bg = (term->attribute & attr_mask[ATTR_BLINK] && term->color_pair.bg <= 7) ?

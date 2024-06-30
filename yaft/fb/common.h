@@ -476,6 +476,32 @@ void blit_whole_fb(struct framebuffer_t *fb) {
 	}
 }
 
+const bitmap_row_t *find_bitmap(const struct glyph_t *glyph, bool is_bold, bool is_italic, bool *autoslant) {
+	const bitmap_row_t *const *variants = glyph->variants;
+
+	if (is_bold && is_italic) {
+		if (variants[GV_BOLDITALIC]) return variants[GV_BOLDITALIC];
+
+		// If we don't have BOLDITALIC, prefer BOLD + autoslant to plain italic.
+		if (variants[GV_BOLD]) {
+			*autoslant = true;
+			return variants[GV_BOLD];
+		}
+
+		// Otherwise I guess italic is better than nothing.
+		if (variants[GV_ITALIC]) return variants[GV_ITALIC];
+		return &(glyph->bitmap[0]);
+	}
+
+	// If we get this far we're either bold or italic, but not both.
+	if (is_bold && variants[GV_BOLD]) return variants[GV_BOLD];
+	if (is_italic) {
+		if (variants[GV_ITALIC]) return variants[GV_ITALIC];
+		*autoslant = true;
+	}
+	return &(glyph->bitmap[0]);
+}
+
 // Draw a row of cells to the screen.
 static inline void draw_line(struct framebuffer_t *fb, struct terminal_t *term, int line, bool blit)
 {
@@ -516,20 +542,10 @@ static inline void draw_line(struct framebuffer_t *fb, struct terminal_t *term, 
 			color_pair.bg = (!vt_active && BACKGROUND_DRAW) ? PASSIVE_CURSOR_COLOR: ACTIVE_CURSOR_COLOR;
 		}
 
-		bool slant = false;
-		if (cellp->variant >= 0 && cellp->glyphp->variants[cellp->variant]) {
-			bitmap = cellp->glyphp->variants[cellp->variant];
-		} else {
-			bitmap = &(cellp->glyphp->bitmap[0]);
-#ifdef AUTOSLANT
-			if (cellp->variant == GV_ITALIC || cellp->variant == GV_BOLDITALIC) {
-				slant = true;
-			}
-			if (cellp->variant == GV_BOLDITALIC && cellp->glyphp->variants[GV_BOLD]) {
-				bitmap = cellp->glyphp->variants[GV_BOLD];
-			}
-#endif
-		}
+		bool is_bold = cellp->attribute & attr_mask[ATTR_BOLD];
+		bool is_italic = cellp->attribute & attr_mask[ATTR_ITALIC];
+		bool autoslant = false;
+		bitmap = find_bitmap(cellp->glyphp, is_bold, is_italic, &autoslant);
 
 		for (h = 0; h < CELL_HEIGHT; h++) {
 		  int bg = color_pair.bg;
@@ -539,7 +555,7 @@ static inline void draw_line(struct framebuffer_t *fb, struct terminal_t *term, 
 			if ((h == CELL_HEIGHT/2) && (cellp->attribute & attr_mask[ATTR_STRIKE]))
 				bg = color_pair.fg;
 
-			int offset = slant ? (3*(h-AUTOSLANT_OFFSET)/AUTOSLANT)-1 : 0;
+			int offset = autoslant ? (3*(h-AUTOSLANT_OFFSET)/AUTOSLANT)-1 : 0;
 
 			for (w = 0; w < CELL_WIDTH; w++) {
 				pos = get_px_offset(
